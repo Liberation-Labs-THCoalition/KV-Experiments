@@ -1,0 +1,36 @@
+# Virtual environment
+.venv/
+venv/
+env/
+
+# C2C submodule/clone (external dependency)
+C2C/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Checkpoints (large files)
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+wandb/

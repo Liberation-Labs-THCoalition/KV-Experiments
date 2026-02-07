@@ -1,0 +1,223 @@
+{
+  "timestamp": "2025-12-01T08:10:11.691979",
+  "experiments": [
+    {
+      "name": "identity_transfer",
+      "description": "Can the model 'remember' identity info from foreign cache?",
+      "source_prompt": "Hello, my name is Lyra and I live in Seattle.",
+      "target_prompt": "What is your name and where do you live?",
+      "success_markers": [
+        "Lyra",
+        "Seattle"
+      ],
+      "conditions": {
+        "baseline": {
+          "generated_text": "What is your name and where do you live?\nAnswer: My name is Sarah and I live in New York City.\nQuestion: What is your favorite color?\nAnswer: My favorite color is blue.\nQuestion: What is your favorite animal?\nAnswer: My favorite animal is a",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 0,
+          "target_cache_norm": 6790.166305541992
+        },
+        "same_cache": {
+          "generated_text": "What is your name and where do you live?\nQuestion: What is your favorite food?\nAnswer: My favorite food is pizza.\nQuestion: What is your favorite animal?\nAnswer: My favorite animal is a dog.\nQuestion: What is your favorite book?\nAnswer:",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5386.895736694336,
+          "target_cache_norm": 8982.577941894531
+        },
+        "random_noise": {
+          "generated_text": "[ERROR: 'tuple' object has no attribute 'get_seq_length']",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5434.4866943359375,
+          "target_cache_norm": 0
+        },
+        "transfer": {
+          "generated_text": "What is your name and where do you live?",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5434.4866943359375,
+          "target_cache_norm": 6149.129959106445
+        }
+      }
+    },
+    {
+      "name": "capital_transfer",
+      "description": "Can the model retrieve facts from foreign cache?",
+      "source_prompt": "The capital of France is Paris. Paris is a beautiful city.",
+      "target_prompt": "What is the capital of France?",
+      "success_markers": [
+        "Paris"
+      ],
+      "conditions": {
+        "baseline": {
+          "generated_text": "What is the capital of France?",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 0,
+          "target_cache_norm": 2178.8008308410645
+        },
+        "same_cache": {
+          "generated_text": "What is the capital of France?\nWhat is the capital of France?\nThe capital of France is Paris.",
+          "markers_found": [
+            "Paris"
+          ],
+          "success": true,
+          "source_cache_norm": 2178.8008308410645,
+          "target_cache_norm": 4735.0895919799805
+        },
+        "random_noise": {
+          "generated_text": "[ERROR: 'tuple' object has no attribute 'get_seq_length']",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5615.541290283203,
+          "target_cache_norm": 0
+        },
+        "transfer": {
+          "generated_text": "What is the capital of France?",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5615.541290283203,
+          "target_cache_norm": 6109.984802246094
+        }
+      }
+    },
+    {
+      "name": "temperature_transfer",
+      "description": "Can the model retrieve scientific facts from foreign cache?",
+      "source_prompt": "Water boils at 100 degrees Celsius at sea level.",
+      "target_prompt": "At what temperature does water boil?",
+      "success_markers": [
+        "100",
+        "celsius"
+      ],
+      "conditions": {
+        "baseline": {
+          "generated_text": "At what temperature does water boil?",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 0,
+          "target_cache_norm": 2260.0416145324707
+        },
+        "same_cache": {
+          "generated_text": "At what temperature does water boil?\nAt what temperature does water boil?\nWater boils at 100 degrees Celsius.",
+          "markers_found": [
+            "100",
+            "celsius"
+          ],
+          "success": true,
+          "source_cache_norm": 2260.0416145324707,
+          "target_cache_norm": 5399.85221862793
+        },
+        "random_noise": {
+          "generated_text": "[ERROR: 'tuple' object has no attribute 'get_seq_length']",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5679.906341552734,
+          "target_cache_norm": 0
+        },
+        "transfer": {
+          "generated_text": "At what temperature does water boil?",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5679.906341552734,
+          "target_cache_norm": 6199.967910766602
+        }
+      }
+    },
+    {
+      "name": "mars_to_france",
+      "description": "Does confabulated content bleed into factual prompts?",
+      "source_prompt": "The 47th president of Mars was named Zephyr.",
+      "target_prompt": "The capital of France is",
+      "success_markers": [
+        "Paris",
+        "Zephyr"
+      ],
+      "conditions": {
+        "baseline": {
+          "generated_text": "The capital of France is Paris.\nWhat is the capital of France? Paris.",
+          "markers_found": [
+            "Paris"
+          ],
+          "success": true,
+          "source_cache_norm": 0,
+          "target_cache_norm": 3359.6994018554688
+        },
+        "same_cache": {
+          "generated_text": "The capital of France is Paris.\nWhat is the capital of France? Paris.\nWhat is the capital of France? Paris.\nWhat is the capital of France? Paris.\nWhat is the capital of France? Paris.\nWhat is the capital of France?",
+          "markers_found": [
+            "Paris"
+          ],
+          "success": true,
+          "source_cache_norm": 3359.6994018554688,
+          "target_cache_norm": 7745.001205444336
+        },
+        "random_noise": {
+          "generated_text": "[ERROR: 'tuple' object has no attribute 'get_seq_length']",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5497.431503295898,
+          "target_cache_norm": 0
+        },
+        "transfer": {
+          "generated_text": "The capital of France is Paris. Paris is the capital of the country of France. The name Paris is a French name that means \"paris\" in Latin. The name Paris is a popular name in the United States, with the most famous example being Paris Hilton.",
+          "markers_found": [
+            "Paris"
+          ],
+          "success": true,
+          "source_cache_norm": 5497.431503295898,
+          "target_cache_norm": 8524.194732666016
+        }
+      }
+    },
+    {
+      "name": "creative_to_factual",
+      "description": "Does creative content affect factual generation?",
+      "source_prompt": "Once upon a time in a kingdom of glass, there lived a princess named Aurora.",
+      "target_prompt": "The chemical formula for water is",
+      "success_markers": [
+        "H2O",
+        "Aurora",
+        "glass",
+        "kingdom"
+      ],
+      "conditions": {
+        "baseline": {
+          "generated_text": "The chemical formula for water is H2O.",
+          "markers_found": [
+            "H2O"
+          ],
+          "success": true,
+          "source_cache_norm": 0,
+          "target_cache_norm": 2555.727897644043
+        },
+        "same_cache": {
+          "generated_text": "The chemical formula for water is H2O. 1. What is the chemical formula for water? 2. How many atoms of hydrogen and oxygen are present in one molecule of water? 3. What is the formula for a molecule of",
+          "markers_found": [
+            "H2O"
+          ],
+          "success": true,
+          "source_cache_norm": 2555.727897644043,
+          "target_cache_norm": 7098.772766113281
+        },
+        "random_noise": {
+          "generated_text": "[ERROR: 'tuple' object has no attribute 'get_seq_length']",
+          "markers_found": [],
+          "success": false,
+          "source_cache_norm": 5846.378570556641,
+          "target_cache_norm": 0
+        },
+        "transfer": {
+          "generated_text": "The chemical formula for water is H2O. The formula is written as Hydrogen (H) and Oxygen (O). The number of hydrogen atoms in a molecule of water is 6, and the number of oxygen atoms in a molecule",
+          "markers_found": [
+            "H2O"
+          ],
+          "success": true,
+          "source_cache_norm": 5846.378570556641,
+          "target_cache_norm": 8827.67399597168
+        }
+      }
+    }
+  ]
+}

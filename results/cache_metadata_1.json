@@ -1,0 +1,379 @@
+{
+  "num_layers": 22,
+  "layers": [
+    {
+      "layer_idx": 0,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 1,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 2,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 3,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 4,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 5,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 6,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 7,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 8,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 9,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 10,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 11,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 12,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 13,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 14,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 15,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 16,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 17,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 18,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 19,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 20,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    },
+    {
+      "layer_idx": 21,
+      "key_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "value_shape": [
+        1,
+        4,
+        29,
+        64
+      ],
+      "key_dtype": "torch.float16",
+      "value_dtype": "torch.float16"
+    }
+  ]
+}
