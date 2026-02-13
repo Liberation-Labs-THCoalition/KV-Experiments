@@ -120,9 +120,9 @@ Inject into:
 **Discriminator**: If A works but B fails → cache is fragile/position-locked. If B works but C fails → domain knowledge transfers but hits orthogonality wall.
 
 #### Deliverables
-- [ ] `code/01d_adversarial_controls.py`
-- [ ] Updated Phase 1.5 results with control comparisons
-- [ ] `docs/PHASE_1_75_CONTROLS.md`
+- [x] `code/01d_adversarial_controls.py`
+- [ ] Updated Phase 1.5 results with control comparisons (after running)
+- [x] `docs/PHASE_1_75_CONTROLS.md`
 
 ---
 
