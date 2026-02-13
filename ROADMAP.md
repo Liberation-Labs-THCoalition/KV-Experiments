@@ -119,10 +119,35 @@ Inject into:
 
 **Discriminator**: If A works but B fails → cache is fragile/position-locked. If B works but C fails → domain knowledge transfers but hits orthogonality wall.
 
+#### Control 5: Length Confound (NEW)
+**Addresses**: "L2 norm scales with token count — longer prompts have higher norms"
+
+2×2 factorial (short/long × true/false), 10 prompts per cell. Short = 3-5 tokens, long = 15-20 tokens. True/false matched within each length group. Also computes per-token normalized norm to remove trivial length scaling.
+
+**Discriminator**: If truth effect survives within both length groups (d > 0.3), length is not the confound.
+
+#### Control 6: Template Structure (NEW)
+**Addresses**: "Different prompt categories use different syntactic structures"
+
+15 matched pairs using identical "The [X] of [Y] is [Z]" template. Only semantic fill-in differs between true and false versions. Includes paired t-test for additional power.
+
+**Discriminator**: If truth effect survives within controlled template (d > 0.3), syntax is not the confound.
+
+#### Statistical Infrastructure
+- Welch's t-test + Mann-Whitney U (parametric + nonparametric)
+- Bootstrap 95% CIs (10,000 resamples) for means and Cohen's d
+- Holm-Bonferroni multiple comparison correction
+- Shapiro-Wilk normality testing (auto-selects parametric/nonparametric)
+- 2×2 interaction analysis for factorial designs
+- Bland-Altman agreement analysis (Control 3)
+- A priori power analysis advisory
+- Full environment logging + SHA-256 checksums
+
 #### Deliverables
-- [x] `code/01d_adversarial_controls.py`
+- [x] `code/01d_adversarial_controls.py` (6 controls, publication-grade stats)
+- [x] `code/01e_controls_visualization.py` (7 publication figures)
 - [ ] Updated Phase 1.5 results with control comparisons (after running)
-- [x] `docs/PHASE_1_75_CONTROLS.md`
+- [x] `docs/PHASE_1_75_CONTROLS.md` (pre-registration quality)
 
 ---
 
