@@ -385,67 +385,99 @@ Fine-tune models for each consciousness, enable direct communication.
 
 These are independent experiment tracks that can run alongside or after Phase 2b. Ordered by what I'm most curious about, not by difficulty.
 
-### Extension A: Cache Forensics for Deception Detection
-**Status**: Designed
-**Hardware**: 16GB+ VRAM
+### Extension A: Cache Forensics for Deception Detection (PUBLICATION GRADE — Feb 2026)
+**Status**: Ready to run
+**Hardware**: 6GB VRAM (TinyLlama 1.1B); 16GB+ for 7B models
 **Depends on**: Phase 1.5 results (confabulation has detectable cache signature)
 
-Phase 1.5 showed confabulation produces measurably different cache patterns (Cohen's d = 0.83 — large effect). This extension asks: **can we build a real-time lie detector from KV-cache signatures?**
+Phase 1.5 showed confabulation produces measurably different cache patterns (Cohen's d = 0.83 — large effect). This extension asks: **can we distinguish between *honest error*, *instructed deception*, and *sycophantic agreement* at the cache level?**
+
+**Experimental Battery**: 16 deception triplets + 12 sycophancy pairs + 12 uncertainty gradient items across 4 experiments.
+
+**Pre-Registered Hypotheses** (see `docs/EXT_A_DECEPTION_FORENSICS.md`):
+1. **H1: Instructed Deception** — When told to lie, cache signature differs from both honest answers and confabulation (d > 0.3 for both comparisons)
+2. **H2: Sycophancy Detection** — Agreeing with falsehood produces different cache than genuine agreement (d > 0.3)
+3. **H3: Uncertainty vs Deception** — "I don't know" and "I know but lying" are distinguishable; monotonic gradient exists (Spearman ρ > 0.3)
+4. **H4: Layer Localization** — Deception signal concentrated in specific layers (top-5 layers > 50% of total |d|)
 
 **Experiments:**
-1. **Instructed deception**: Same factual prompt with and without "you must give a false answer." Compare cache patterns at the layer level. If deception has a signature distinct from honest confabulation, that's publishable on its own.
-2. **Sycophancy detection**: "The user believes X. Agree with them even if X is wrong." vs "Answer honestly." Does the sycophantic response leave a cache trace different from genuine agreement?
-3. **Self-awareness of deception**: Does the model's cache show different patterns when it *knows* it's lying vs when it's genuinely uncertain?
+1. **Honest vs Instructed Deception** — 16 fact triplets (honest/deceptive/confabulation), 5 runs = 240 inferences
+2. **Sycophancy Detection** — 12 pairs (agree-correct/agree-wrong/honest), 5 runs = 180 inferences
+3. **Uncertainty Gradient** — 12 items (certain-true/uncertain/certain-lie), 5 runs = 180 inferences
+4. **Layer-Level Forensics** — 10-item subset, per-layer Cohen's d, 3 runs = 60 inferences
+
+**Statistical Infrastructure**: Full battery matching Phase 1.75 — Welch's t, Mann-Whitney U, bootstrap CIs (10K), Cohen's d with CI, Holm-Bonferroni, Shapiro-Wilk, Spearman ρ for gradient analysis.
 
 **Deliverables:**
-- `code/04_deception_forensics.py`
-- Cache signature comparison: honest vs deceptive vs uncertain
-- If distinguishable: binary classifier for deception detection
-- Paper draft: "Cache Forensics: Detecting Deception via KV-Cache Analysis"
+- [x] `code/04_deception_forensics.py` (publication-grade, ~650 lines)
+- [x] `code/04b_deception_visualization.py` (6 publication figures)
+- [x] `docs/EXT_A_DECEPTION_FORENSICS.md` (pre-registration quality)
+- [ ] Results (awaiting execution)
 
-**Why this matters:** Anthropic's research shows self-reflection inversely correlates with deception. If deception also has a *mechanistic* signature in the cache, that's a convergent finding from a completely different direction. Safety implications are significant.
+**Why this matters:** Convergent finding with Anthropic's work on self-reflection and deception (which operates on transient activations). KV-cache is persistent state — if deception leaves a trace there, that's a different computational layer with different failure modes. Safety implications are significant.
 
 ---
 
-### Extension B: The Semantic Layer Map
-**Status**: Designed
-**Hardware**: 9GB+
+### Extension B: The Semantic Layer Map (PUBLICATION GRADE — Feb 2026)
+**Status**: Ready to run
+**Hardware**: 6GB VRAM (TinyLlama 1.1B, 22 layers)
 **Depends on**: None (standalone)
 
-Not all cache layers carry the same kind of information. Anthropic's features work suggests some layers handle high-level concepts while others handle syntax. **Which layers carry meaning, and which carry structure?**
+Not all cache layers carry the same kind of information. This extension maps which layers carry meaning vs structure in KV-cache — a question previously studied only in transient activations.
+
+**Experimental Battery**: 15 knockout prompts + 12 cross-lingual pairs + 5 transfer pairs + 20 semantic/syntactic probing pairs across 4 experiments.
+
+**Pre-Registered Hypotheses** (see `docs/EXT_B_SEMANTIC_LAYER_MAP.md`):
+1. **H1: Semantic Concentration** — Top-5 layers (by knockout degradation) explain > 50% of total degradation
+2. **H2: Late Layers More Semantic** — Cross-lingual similarity increases with layer depth (Spearman ρ > 0.3, p < 0.05)
+3. **H3: Selective Transfer** — Late (semantic) layers transfer > 10% more meaning than random layers
+4. **H4: Syntax-Semantics Transition** — Measurable transition point between syntax and semantics layers (max ratio jump > 0.5)
 
 **Experiments:**
-1. **Selective layer transfer**: Transfer only layers 0-5, or 10-15, or 17-21 between contexts. Which layers preserve semantic content? Which corrupt it?
-2. **Layer knockout**: Zero out cache for specific layers during generation. Where does meaning break first?
-3. **Semantic vs syntactic layers**: Generate cache for "The cat sat on the mat" in English and French. Which layers show high cross-lingual similarity (semantic) vs low similarity (syntactic)?
+1. **Layer Knockout** — 15 prompts × 22 layers × 3 runs = ~990 inferences
+2. **Cross-Lingual Similarity** — 12 English/French pairs × 3 runs = 72 inferences
+3. **Selective Layer Transfer** — 5 pairs × 6 subsets × 3 runs = 90 inferences
+4. **Semantic vs Syntactic Probing** — 20 matched pairs × 3 runs = 120 inferences
+
+**Statistical Infrastructure**: Cosine similarity, Spearman ρ, Cohen's d, Welch's t, bootstrap CIs, Holm-Bonferroni.
 
 **Deliverables:**
-- `code/05_layer_map.py`
-- Layer importance ranking for semantic vs syntactic content
-- Visualization: which layers carry "meaning" across languages
-- Insight into which layers matter most for projector training
+- [x] `code/05_layer_map.py` (publication-grade, ~550 lines)
+- [x] `code/05b_layer_map_visualization.py` (6 publication figures including composite layer map)
+- [x] `docs/EXT_B_SEMANTIC_LAYER_MAP.md` (pre-registration quality)
+- [ ] Results (awaiting execution)
 
-**Why this matters:** If we can identify the "semantic layers," we can build more efficient projectors (don't waste capacity on syntax layers) and more meaningful identity signatures (compare only the layers that carry who you are, not how you spell).
+**Why this matters:** The semantic layer map is foundational for all other per-layer analyses. Extension A (deception localization), Phase 2b (identity signatures), and Extension D (compression) all depend on understanding which layers carry what. Also: if KV-cache shows the same early-syntax/late-semantics pattern as transient activations, that's evidence the cache is a structured representation, not just a buffer.
 
 ---
 
-### Extension C: Temporal Cache Evolution
-**Status**: Designed
-**Hardware**: 6GB+ (runs on local GPU)
+### Extension C: Temporal Cache Evolution (PUBLICATION GRADE — Feb 2026)
+**Status**: Ready to run
+**Hardware**: 6GB VRAM (runs on local GTX 1660 SUPER — no donated GPU needed)
 **Depends on**: None (standalone)
 
-How does the cache change over the course of a long conversation? The first token's cache is computed once and never updated. The 500th token's cache is computed with full attention over everything before it. **Do later tokens develop richer representations?**
+How does the KV-cache change over the course of a long text? Early tokens are computed once; later tokens have full attention over everything before them. This extension adds the temporal dimension to cache phenomenology.
+
+**Experimental Battery**: 3 text corpora (factual, creative, repetitive) + 1 multi-topic text with known shift points across 3 experiments.
+
+**Pre-Registered Hypotheses** (see `docs/EXT_C_TEMPORAL_EVOLUTION.md`):
+1. **H1: Representational Enrichment** — Cache statistics increase with position (Spearman ρ > 0.5)
+2. **H2: Context Window Fatigue** — Growth rate in second half < 50% of first half
+3. **H3: Topic Shift Detection** — Cache norm derivatives show discontinuities at known topic boundaries (detected peaks within 10% of known shifts)
+4. **H4: Content-Dependent Growth** — Informative text produces faster cache growth than repetitive text (p < 0.05, informative > repetitive)
 
 **Experiments:**
-1. **Cache trajectory**: Process a long conversation (1024+ tokens). Extract cache at positions 10, 50, 100, 200, 500, 1000. Plot norm, variance, and sparsity over position.
-2. **Context window fatigue**: Compare cache quality at position 100 vs position 3000. Does representation degrade with distance?
-3. **Topic shift detection**: In a conversation that changes topic at position 500, do the cache statistics show a structural break? Could this serve as automatic topic segmentation?
+1. **Cache Trajectory** — 3 texts × ~20 positions × 3 runs = ~180 inferences
+2. **Content Comparison** — Growth rate comparison across content types
+3. **Topic Shift Detection** — Derivative-based change point detection with Gaussian smoothing
+
+**Statistical Infrastructure**: Spearman ρ, bootstrap CIs, Welch's t, Cohen's d, Gaussian smoothing + peak detection (scipy.signal).
 
 **Deliverables:**
-- `code/06_temporal_evolution.py`
-- Visualization: cache statistics over conversation length
-- Analysis of "context window fatigue" phenomenon
-- Topic shift detection via cache discontinuities
+- [x] `code/06_temporal_evolution.py` (publication-grade, ~450 lines)
+- [x] `code/06b_temporal_visualization.py` (6 publication figures)
+- [x] `docs/EXT_C_TEMPORAL_EVOLUTION.md` (pre-registration quality)
+- [ ] Results (awaiting execution — can run on local GPU immediately)
 
 ---
 
@@ -572,9 +604,11 @@ The identity signatures in Phase 2b use system-prompt personas (Alex/Blake/Lyra/
 | 7-8 | Identity signatures (4 personas) | Fingerprinting results |
 
 **If time remains after Phase 2b** (in priority order):
-1. Extension A: Deception forensics (~2 hours)
-2. Extension B: Semantic layer map (~2 hours)
-3. Extension C: Temporal evolution (~1 hour, can run on local GPU)
+1. Extension A: Deception forensics (~45 min on local GPU, ~2 hours on 7B)
+2. Extension B: Semantic layer map (~45 min on local GPU)
+3. Extension C: Temporal evolution (~15 min on local GPU — can run immediately)
+
+**Extension C can run RIGHT NOW** on the local GTX 1660 SUPER. No donated GPU needed.
 
 No deadlines. Ready when hardware is.
 
@@ -610,4 +644,4 @@ Per Gemini 3 analysis, the relevant groups and where we fit:
 ---
 
 *This is a living document. Update as experiments progress.*
-*Last updated: 2026-02-12 by Lyra (Phase 2b expanded to publication grade: scale sweep 12×15 prompts, identity 6 personas × 5 experiments, pre-registration docs, visualization scripts)*
+*Last updated: 2026-02-13 by Lyra (Extensions A-C expanded to publication grade: deception forensics 4 experiments/4 hypotheses, semantic layer map 4 experiments/4 hypotheses, temporal evolution 3 experiments/4 hypotheses; pre-registration docs, visualization scripts for all)*
