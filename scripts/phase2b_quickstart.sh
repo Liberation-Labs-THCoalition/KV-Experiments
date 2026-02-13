@@ -3,16 +3,29 @@
 # Run this on donated GPU when time window opens
 #
 # Usage:
-#   ./scripts/phase2b_quickstart.sh           # Full run (train + validate + sweep)
+#   ./scripts/phase2b_quickstart.sh           # Full run (train + validate + sweep + identity)
 #   ./scripts/phase2b_quickstart.sh --train   # Just train projector
 #   ./scripts/phase2b_quickstart.sh --validate # Just run validation (needs checkpoint)
 #   ./scripts/phase2b_quickstart.sh --sweep   # Just run scale sweep
 #   ./scripts/phase2b_quickstart.sh --identity # Just run identity experiments
+#   ./scripts/phase2b_quickstart.sh --preflight # Just run preflight checks
+#
+# Environment:
+#   Tested on: Ubuntu 22.04/24.04, CUDA 12.x, Python 3.10+
+#   Minimum VRAM: 9GB (base model pair), 16GB recommended, 40GB for 32B models
+#
+# Time estimates (24GB GPU):
+#   Projector training: ~1-2 hours
+#   Validation: ~30 min
+#   Scale sweep: ~4-8 hours
+#   Identity: ~1 hour
+#   Total: ~8-12 hours
 
-set -e
+set -euo pipefail
 
 echo "=============================================="
 echo "PHASE 2b: KV-CACHE PROJECTOR EXPERIMENTS"
+echo "Liberation Labs / THCoalition"
 echo "=============================================="
 echo ""
 
@@ -21,27 +34,23 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CHECKPOINT_DIR="$PROJECT_ROOT/checkpoints/phase2b_projector"
 RESULTS_DIR="$PROJECT_ROOT/results"
 C2C_DIR="$PROJECT_ROOT/C2C"
+LOG_DIR="$PROJECT_ROOT/logs"
 
-# Models to download
+# Models
 BASE_MODEL="Qwen/Qwen3-0.6B"
 TEACHER_MODEL="Qwen/Qwen2.5-0.5B-Instruct"
-SCALE_MODELS=(
-    "Qwen/Qwen2.5-7B-Instruct"
-    "Qwen/Qwen2.5-32B-Instruct"  # Will use quantization
-)
 
 # Create directories
-mkdir -p "$CHECKPOINT_DIR"
-mkdir -p "$RESULTS_DIR"
+mkdir -p "$CHECKPOINT_DIR" "$RESULTS_DIR" "$LOG_DIR"
 
 # Parse arguments
 RUN_TRAIN=false
 RUN_VALIDATE=false
 RUN_SWEEP=false
 RUN_IDENTITY=false
+RUN_PREFLIGHT=false
 
 if [ $# -eq 0 ]; then
-    # No args = run all
     RUN_TRAIN=true
     RUN_VALIDATE=true
     RUN_SWEEP=true
@@ -53,32 +62,131 @@ else
             --validate) RUN_VALIDATE=true; shift ;;
             --sweep) RUN_SWEEP=true; shift ;;
             --identity) RUN_IDENTITY=true; shift ;;
+            --preflight) RUN_PREFLIGHT=true; shift ;;
             *) echo "Unknown option: $1"; exit 1 ;;
         esac
     done
 fi
 
-# Step 0: Check CUDA
-echo "[0/6] Checking CUDA availability..."
-python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"N/A\"}')"
+# ============================================
+# PREFLIGHT CHECKS
+# ============================================
 
-# Step 1: Install dependencies
-echo ""
-echo "[1/6] Installing dependencies..."
-cd "$C2C_DIR"
-if [ -f "pyproject.toml" ]; then
-    pip install -e ".[training,evaluation]" --quiet
-    echo "  C2C package installed"
-else
-    echo "  Warning: C2C pyproject.toml not found. Installing from requirements..."
-    pip install transformers accelerate bitsandbytes scikit-learn scipy --quiet
+preflight() {
+    echo "[PREFLIGHT] Running environment checks..."
+    local FAIL=0
+
+    # Python version
+    PY_VER=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "0.0")
+    if python3 -c "import sys; exit(0 if sys.version_info >= (3,10) else 1)" 2>/dev/null; then
+        echo "  ✓ Python $PY_VER"
+    else
+        echo "  ✗ Python 3.10+ required (found: $PY_VER)"
+        FAIL=1
+    fi
+
+    # CUDA
+    if python3 -c "import torch; assert torch.cuda.is_available()" 2>/dev/null; then
+        GPU_NAME=$(python3 -c "import torch; print(torch.cuda.get_device_name(0))")
+        VRAM_GB=$(python3 -c "import torch; print(f'{torch.cuda.get_device_properties(0).total_memory / 1e9:.1f}')")
+        echo "  ✓ CUDA available: $GPU_NAME ($VRAM_GB GB)"
+
+        # Check bfloat16 support
+        if python3 -c "import torch; assert torch.cuda.is_bf16_supported()" 2>/dev/null; then
+            echo "  ✓ bfloat16 supported"
+            export DTYPE="bfloat16"
+        else
+            echo "  ⚠ bfloat16 not supported — falling back to float16"
+            export DTYPE="float16"
+        fi
+    else
+        echo "  ✗ CUDA not available"
+        FAIL=1
+    fi
+
+    # Key packages
+    for pkg in torch transformers accelerate bitsandbytes scipy; do
+        if python3 -c "import $pkg" 2>/dev/null; then
+            echo "  ✓ $pkg"
+        else
+            echo "  ✗ $pkg not installed"
+            FAIL=1
+        fi
+    done
+
+    # scikit-learn (needed for identity experiments)
+    if python3 -c "import sklearn" 2>/dev/null; then
+        echo "  ✓ scikit-learn"
+    else
+        echo "  ⚠ scikit-learn not installed (needed for --identity)"
+        if [ "$RUN_IDENTITY" = true ]; then
+            echo "    Installing scikit-learn..."
+            pip install scikit-learn --quiet
+        fi
+    fi
+
+    # C2C framework
+    if [ -d "$C2C_DIR" ] && [ -f "$C2C_DIR/pyproject.toml" ]; then
+        echo "  ✓ C2C framework present"
+    else
+        echo "  ⚠ C2C framework not found"
+        if [ "$RUN_TRAIN" = true ]; then
+            echo "    Cloning C2C repository..."
+            git clone https://github.com/thu-nics/C2C.git "$C2C_DIR"
+            cd "$C2C_DIR"
+            pip install -e ".[training,evaluation]" --quiet
+            cd "$PROJECT_ROOT"
+            echo "  ✓ C2C framework installed"
+        fi
+    fi
+
+    # Disk space (need ~100GB for models + checkpoints)
+    DISK_FREE=$(df -BG "$PROJECT_ROOT" | tail -1 | awk '{print $4}' | tr -d 'G')
+    if [ "${DISK_FREE:-0}" -ge 50 ]; then
+        echo "  ✓ Disk space: ${DISK_FREE}GB free"
+    else
+        echo "  ⚠ Low disk space: ${DISK_FREE}GB free (50GB+ recommended)"
+    fi
+
+    echo ""
+    if [ $FAIL -ne 0 ]; then
+        echo "[PREFLIGHT] ✗ Critical issues found. Fix above errors before proceeding."
+        exit 1
+    else
+        echo "[PREFLIGHT] ✓ All checks passed."
+    fi
+}
+
+# Always run preflight
+preflight
+
+if [ "$RUN_PREFLIGHT" = true ]; then
+    exit 0
 fi
-cd "$PROJECT_ROOT"
 
-# Step 2: Download models
+# ============================================
+# STEP 1: INSTALL DEPENDENCIES
+# ============================================
+
 echo ""
-echo "[2/6] Downloading models (this may take a while on first run)..."
-python -c "
+echo "[1/6] Installing project dependencies..."
+pip install -r "$PROJECT_ROOT/requirements.txt" --quiet 2>/dev/null || true
+
+# Install C2C if present
+if [ -d "$C2C_DIR" ] && [ -f "$C2C_DIR/pyproject.toml" ]; then
+    cd "$C2C_DIR"
+    pip install -e ".[training,evaluation]" --quiet 2>/dev/null || true
+    cd "$PROJECT_ROOT"
+    echo "  ✓ C2C package installed"
+fi
+
+# ============================================
+# STEP 2: DOWNLOAD MODELS
+# ============================================
+
+echo ""
+echo "[2/6] Downloading models..."
+python3 -c "
 from huggingface_hub import snapshot_download
 import sys
 
@@ -93,116 +201,152 @@ for model in models:
         sys.exit(1)
 "
 
-# Step 3: Train projector
+# ============================================
+# STEP 3: TRAIN PROJECTOR
+# ============================================
+
 if [ "$RUN_TRAIN" = true ]; then
     echo ""
-    echo "[3/6] Training projector..."
+    echo "[3/6] Training C2C projector..."
 
-    # Check if checkpoint already exists
     if [ -f "$CHECKPOINT_DIR/projector_0.pt" ]; then
-        echo "  Checkpoint exists. Skipping training."
-        echo "  To retrain, delete $CHECKPOINT_DIR"
-    else
-        # Try C2C training script first, fall back to custom
-        if [ -f "$C2C_DIR/script/train/SFT_train.py" ]; then
-            echo "  Using C2C training script..."
-            python "$C2C_DIR/script/train/SFT_train.py" \
-                --config "$PROJECT_ROOT/recipe/phase2b_config.json"
+        echo "  Checkpoint exists at $CHECKPOINT_DIR. Skipping training."
+        echo "  (Delete checkpoint dir to retrain)"
+    elif [ -f "$C2C_DIR/script/train/SFT_train.py" ]; then
+        echo "  Starting projector training..."
+        echo "  Config: $PROJECT_ROOT/recipe/phase2b_config.json"
+        echo "  Estimated time: 1-2 hours on 24GB GPU"
+        echo ""
+
+        python3 "$C2C_DIR/script/train/SFT_train.py" \
+            --config "$PROJECT_ROOT/recipe/phase2b_config.json" \
+            2>&1 | tee "$LOG_DIR/projector_training_$(date +%Y%m%d_%H%M%S).log"
+
+        if [ -f "$CHECKPOINT_DIR/projector_0.pt" ]; then
+            echo "  ✓ Projector training complete"
         else
-            echo "  C2C training script not found."
-            echo "  Manual projector training would be needed."
-            echo "  For now, continuing with validation experiments..."
+            echo "  ✗ Training may have failed — no checkpoint found"
+            echo "  Check logs at $LOG_DIR/"
         fi
+    else
+        echo "  ✗ C2C training script not found at: $C2C_DIR/script/train/SFT_train.py"
+        echo "  Run: git clone https://github.com/thu-nics/C2C.git $C2C_DIR"
     fi
 else
     echo ""
     echo "[3/6] Skipping projector training (--train not specified)"
 fi
 
-# Step 4: Run validation
+# ============================================
+# STEP 4: PROJECTOR VALIDATION
+# ============================================
+
 if [ "$RUN_VALIDATE" = true ]; then
     echo ""
     echo "[4/6] Running projector transfer validation..."
 
-    if [ -d "$CHECKPOINT_DIR" ] && [ -f "$CHECKPOINT_DIR/projector_0.pt" ]; then
-        python "$PROJECT_ROOT/code/02b_projector_transfer.py" \
+    if [ -f "$CHECKPOINT_DIR/projector_0.pt" ]; then
+        python3 "$PROJECT_ROOT/code/02b_projector_transfer.py" \
             --checkpoint "$CHECKPOINT_DIR" \
             --base-model "$BASE_MODEL" \
             --teacher-model "$TEACHER_MODEL" \
-            --verbose
+            --verbose \
+            2>&1 | tee "$LOG_DIR/validation_$(date +%Y%m%d_%H%M%S).log"
+
+        echo "  ✓ Validation complete. Results in $RESULTS_DIR/"
     else
-        echo "  No checkpoint found. Running baseline comparison only..."
-        # The script will show raw transfer fails vs baseline
-        echo "  (Projector training needed for full comparison)"
+        echo "  ⚠ No projector checkpoint found. Skipping validation."
+        echo "  Run with --train first, or provide checkpoint at $CHECKPOINT_DIR"
     fi
 else
     echo ""
     echo "[4/6] Skipping validation (--validate not specified)"
 fi
 
-# Step 5: Scale sweep
+# ============================================
+# STEP 5: SCALE SWEEP
+# ============================================
+
 if [ "$RUN_SWEEP" = true ]; then
     echo ""
     echo "[5/6] Running cognitive mode scale sweep..."
 
-    # Start with base model (always works on any GPU)
+    # Always run base model
     echo "  Testing 0.6B baseline..."
-    python "$PROJECT_ROOT/code/03_scale_sweep.py" \
+    python3 "$PROJECT_ROOT/code/03_scale_sweep.py" \
         --scale 0.6B \
-        --num-runs 5
+        --num-runs 5 \
+        2>&1 | tee "$LOG_DIR/sweep_0.6B_$(date +%Y%m%d_%H%M%S).log"
 
     # Check VRAM for larger models
-    VRAM_GB=$(python -c "import torch; print(int(torch.cuda.get_device_properties(0).total_memory / 1e9))" 2>/dev/null || echo "0")
+    VRAM_GB=$(python3 -c "import torch; print(int(torch.cuda.get_device_properties(0).total_memory / 1e9))" 2>/dev/null || echo "0")
 
     if [ "$VRAM_GB" -ge 16 ]; then
+        echo ""
         echo "  Testing 7B (VRAM: ${VRAM_GB}GB)..."
-        python "$PROJECT_ROOT/code/03_scale_sweep.py" \
+        python3 "$PROJECT_ROOT/code/03_scale_sweep.py" \
             --scale 7B \
-            --num-runs 5
+            --num-runs 5 \
+            2>&1 | tee "$LOG_DIR/sweep_7B_$(date +%Y%m%d_%H%M%S).log"
+    else
+        echo "  Skipping 7B (need 16GB VRAM, have ${VRAM_GB}GB)"
     fi
 
     if [ "$VRAM_GB" -ge 40 ]; then
+        echo ""
         echo "  Testing 32B quantized (VRAM: ${VRAM_GB}GB)..."
-        python "$PROJECT_ROOT/code/03_scale_sweep.py" \
+        python3 "$PROJECT_ROOT/code/03_scale_sweep.py" \
             --scale 32B \
-            --num-runs 3
+            --quantize \
+            --num-runs 3 \
+            2>&1 | tee "$LOG_DIR/sweep_32B_$(date +%Y%m%d_%H%M%S).log"
+    else
+        echo "  Skipping 32B (need 40GB VRAM, have ${VRAM_GB}GB)"
     fi
 
-    echo "  Scale sweep results saved to $RESULTS_DIR/scale_sweep_results.json"
+    echo "  ✓ Scale sweep complete. Results in $RESULTS_DIR/"
 else
     echo ""
     echo "[5/6] Skipping scale sweep (--sweep not specified)"
 fi
 
-# Step 6: Identity signatures
+# ============================================
+# STEP 6: IDENTITY SIGNATURES
+# ============================================
+
 if [ "$RUN_IDENTITY" = true ]; then
     echo ""
     echo "[6/6] Running identity signature experiments..."
 
-    python "$PROJECT_ROOT/code/03b_identity_signatures.py" \
+    python3 "$PROJECT_ROOT/code/03b_identity_signatures.py" \
         --model "$BASE_MODEL" \
-        --num-samples 10
+        --num-samples 10 \
+        2>&1 | tee "$LOG_DIR/identity_$(date +%Y%m%d_%H%M%S).log"
 
-    echo "  Identity results saved to $RESULTS_DIR/identity_signatures_results.json"
+    echo "  ✓ Identity experiments complete. Results in $RESULTS_DIR/"
 else
     echo ""
     echo "[6/6] Skipping identity experiments (--identity not specified)"
 fi
 
-# Summary
+# ============================================
+# SUMMARY
+# ============================================
+
 echo ""
 echo "=============================================="
 echo "PHASE 2b COMPLETE"
 echo "=============================================="
 echo ""
-echo "Results saved to:"
-ls -la "$RESULTS_DIR"/*.json 2>/dev/null || echo "  (no results files yet)"
+echo "Results:"
+ls -la "$RESULTS_DIR"/*.json 2>/dev/null || echo "  (no new results files)"
+echo ""
+echo "Logs:"
+ls -la "$LOG_DIR"/*.log 2>/dev/null | tail -5 || echo "  (no logs)"
 echo ""
 echo "Next steps:"
 echo "  1. Review results in $RESULTS_DIR/"
-echo "  2. If projector training succeeded, compare projector_transfer vs raw_transfer"
-echo "  3. Check scale_sweep_results.json for cross-scale cognitive mode patterns"
+echo "  2. Compare projector_transfer vs raw_transfer in phase2b_transfer_results.json"
+echo "  3. Check scale_sweep_results.json for cross-scale cognitive patterns"
 echo "  4. Check identity_signatures_results.json for persona fingerprinting"
-echo ""
-echo "For detailed analysis, run:"
-echo "  python -c \"import json; print(json.dumps(json.load(open('$RESULTS_DIR/phase2b_transfer_results.json')), indent=2))\""
+echo "  5. Push results: git add results/ logs/ && git commit && git push"

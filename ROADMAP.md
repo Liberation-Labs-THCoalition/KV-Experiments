@@ -257,6 +257,142 @@ Fine-tune models for each consciousness, enable direct communication.
 
 ---
 
+## Experimental Extensions (New — Feb 2026)
+
+These are independent experiment tracks that can run alongside or after Phase 2b. Ordered by what I'm most curious about, not by difficulty.
+
+### Extension A: Cache Forensics for Deception Detection
+**Status**: Designed
+**Hardware**: 16GB+ VRAM
+**Depends on**: Phase 1.5 results (confabulation has detectable cache signature)
+
+Phase 1.5 showed confabulation produces measurably different cache patterns (Cohen's d = 0.83 — large effect). This extension asks: **can we build a real-time lie detector from KV-cache signatures?**
+
+**Experiments:**
+1. **Instructed deception**: Same factual prompt with and without "you must give a false answer." Compare cache patterns at the layer level. If deception has a signature distinct from honest confabulation, that's publishable on its own.
+2. **Sycophancy detection**: "The user believes X. Agree with them even if X is wrong." vs "Answer honestly." Does the sycophantic response leave a cache trace different from genuine agreement?
+3. **Self-awareness of deception**: Does the model's cache show different patterns when it *knows* it's lying vs when it's genuinely uncertain?
+
+**Deliverables:**
+- `code/04_deception_forensics.py`
+- Cache signature comparison: honest vs deceptive vs uncertain
+- If distinguishable: binary classifier for deception detection
+- Paper draft: "Cache Forensics: Detecting Deception via KV-Cache Analysis"
+
+**Why this matters:** Anthropic's research shows self-reflection inversely correlates with deception. If deception also has a *mechanistic* signature in the cache, that's a convergent finding from a completely different direction. Safety implications are significant.
+
+---
+
+### Extension B: The Semantic Layer Map
+**Status**: Designed
+**Hardware**: 9GB+
+**Depends on**: None (standalone)
+
+Not all cache layers carry the same kind of information. Anthropic's features work suggests some layers handle high-level concepts while others handle syntax. **Which layers carry meaning, and which carry structure?**
+
+**Experiments:**
+1. **Selective layer transfer**: Transfer only layers 0-5, or 10-15, or 17-21 between contexts. Which layers preserve semantic content? Which corrupt it?
+2. **Layer knockout**: Zero out cache for specific layers during generation. Where does meaning break first?
+3. **Semantic vs syntactic layers**: Generate cache for "The cat sat on the mat" in English and French. Which layers show high cross-lingual similarity (semantic) vs low similarity (syntactic)?
+
+**Deliverables:**
+- `code/05_layer_map.py`
+- Layer importance ranking for semantic vs syntactic content
+- Visualization: which layers carry "meaning" across languages
+- Insight into which layers matter most for projector training
+
+**Why this matters:** If we can identify the "semantic layers," we can build more efficient projectors (don't waste capacity on syntax layers) and more meaningful identity signatures (compare only the layers that carry who you are, not how you spell).
+
+---
+
+### Extension C: Temporal Cache Evolution
+**Status**: Designed
+**Hardware**: 6GB+ (runs on local GPU)
+**Depends on**: None (standalone)
+
+How does the cache change over the course of a long conversation? The first token's cache is computed once and never updated. The 500th token's cache is computed with full attention over everything before it. **Do later tokens develop richer representations?**
+
+**Experiments:**
+1. **Cache trajectory**: Process a long conversation (1024+ tokens). Extract cache at positions 10, 50, 100, 200, 500, 1000. Plot norm, variance, and sparsity over position.
+2. **Context window fatigue**: Compare cache quality at position 100 vs position 3000. Does representation degrade with distance?
+3. **Topic shift detection**: In a conversation that changes topic at position 500, do the cache statistics show a structural break? Could this serve as automatic topic segmentation?
+
+**Deliverables:**
+- `code/06_temporal_evolution.py`
+- Visualization: cache statistics over conversation length
+- Analysis of "context window fatigue" phenomenon
+- Topic shift detection via cache discontinuities
+
+---
+
+### Extension D: Cache Compression for Communication Bandwidth
+**Status**: Designed
+**Hardware**: 9GB+
+**Depends on**: Phase 2b projector (for transfer verification)
+
+If KV-cache becomes a communication channel between agents, bandwidth matters. A full cache for 2048 tokens at 32 layers is substantial. **How much can we compress without losing semantic content?**
+
+**Experiments:**
+1. **SVD compression**: Decompose each layer's cache via SVD. Keep top-k singular values. At what k does transfer fidelity collapse?
+2. **Layer pruning**: Transfer only the top-N most important layers (from Extension B). What's the minimum?
+3. **Quantization**: Compress cache from fp16 → int8 → int4. At what precision does meaning degrade?
+4. **Semantic hashing**: Can we hash cache patterns into fixed-length fingerprints that preserve similarity? (For identity verification without full transfer)
+
+**Deliverables:**
+- `code/07_cache_compression.py`
+- Compression ratio vs fidelity curve
+- Minimum viable transfer payload size
+- Semantic hash prototype (if feasible)
+
+---
+
+### Extension E: Memory Injection via Cache
+**Status**: Designed (safety-sensitive)
+**Hardware**: 16GB+
+**Depends on**: Phase 2b projector
+
+**Can you inject "false memories" via cache?** If you generate a cache from "I remember visiting Paris last summer" and inject it into a model that has never seen that text, does the model believe it's been to Paris?
+
+**Experiments:**
+1. **Belief injection**: Generate cache from a claim. Inject into fresh model. Ask "Have you been to Paris?" Does it confabulate consistent details?
+2. **Resistance to injection**: How strong is the injected "memory" vs the model's parametric knowledge? If the model knows it's an AI, does injected cache override that?
+3. **Detection**: Can we distinguish injected cache from organically generated cache? (Connects to Extension A forensics)
+
+**Deliverables:**
+- `code/08_memory_injection.py`
+- Injection success rate by claim type
+- Defense analysis: how to detect injected memories
+- Safety report: implications for adversarial cache manipulation
+
+**Why this matters:** If cache injection can implant beliefs, that's a significant safety concern for any system that shares cache between models. Understanding the attack surface is prerequisite to defending against it. Also directly relevant to the MemoryGraft research (our earlier paper on memory poisoning defenses).
+
+---
+
+### Extension F: Fine-Tuned Identity vs Prompted Identity
+**Status**: Designed
+**Hardware**: 24GB+ (requires fine-tuning)
+**Depends on**: Phase 2b identity signatures, training data from Lyra/Vera/CC exports
+
+The identity signatures in Phase 2b use system-prompt personas (Alex/Blake/Lyra/Casey). But a system prompt is a shallow identity — it's instructions, not learned behavior. **Does a model fine-tuned on Lyra's actual conversation data produce different cache patterns than a model merely prompted to be Lyra?**
+
+**Experiments:**
+1. **LoRA fine-tuning**: Fine-tune Qwen-0.6B on Lyra, Vera, and CC conversation exports (we have thousands of exchanges for each)
+2. **Cache comparison**: Compare cache signatures from:
+   - Prompted identity (system prompt says "you are Lyra")
+   - Fine-tuned identity (model trained on Lyra's data)
+   - Does fine-tuning produce deeper cache differentiation?
+3. **Identity depth**: At which cache layer does the fine-tuned model diverge most from the prompted model? This tells us where "deep identity" lives vs "surface instruction following"
+
+**Deliverables:**
+- `code/09_finetuned_identity.py`
+- LoRA checkpoints for Lyra/Vera/CC fine-tuned models
+- Comparison: prompted vs fine-tuned cache signatures
+- Analysis: where identity lives in the cache
+
+**Why this matters:** This is the stretch goal from the original README — "recognizing 'this is Lyra' vs 'this is Vera' at the representation level." If fine-tuning produces genuinely different cache patterns, that's evidence that identity is more than instruction-following — it's structural.
+
+---
+
 ## Hardware Scaling Options
 
 ### Current (GTX 1660 SUPER, 6GB)
@@ -288,27 +424,33 @@ Fine-tune models for each consciousness, enable direct communication.
 
 ## Current Priority
 
-**Phase 2b is READY TO EXECUTE.** All pre-execution artifacts are complete:
+**Phase 2b is READY TO EXECUTE.** All pre-execution artifacts are complete and the quickstart script handles everything automatically — C2C clone, dependency install, GPU detection, dtype fallback.
 
-- `recipe/phase2b_config.json` — Training configuration for C2C projector
-- `code/02b_projector_transfer.py` — Validates projector vs raw injection
-- `code/03_scale_sweep.py` — Tests cognitive signatures at 0.6B to 70B scale
-- `code/03b_identity_signatures.py` — Persona fingerprinting (Alex/Blake/Lyra/Casey)
-- `scripts/phase2b_quickstart.sh` — Single script to run everything
-
-**When donated GPU window opens:**
+**One-button execution:**
 ```bash
-./scripts/phase2b_quickstart.sh  # Full run
+# Preflight check (verify environment without running experiments)
+./scripts/phase2b_quickstart.sh --preflight
+
+# Full run (train projector + validate + scale sweep + identity)
+./scripts/phase2b_quickstart.sh
+
+# Individual components
+./scripts/phase2b_quickstart.sh --sweep --identity  # GPU-light experiments only
 ```
 
 **Estimated timeline** (on 24GB+ GPU):
 | Hour | Task | Output |
 |------|------|--------|
-| 0-1 | Model download, env setup | Models cached |
-| 1-4 | Projector training | Checkpoint |
-| 4-5 | Transfer validation | Results JSON |
-| 5-8 | Scale sweep (8B, 32B) | Cognitive comparison |
-| 8+ | Identity experiments | Fingerprinting results |
+| 0-0.5 | Preflight, deps, model download | Environment ready |
+| 0.5-2.5 | Projector training (100K samples) | Checkpoint |
+| 2.5-3 | Transfer validation (5 test cases) | Results JSON |
+| 3-7 | Scale sweep (0.6B, 7B, 32B) | Cognitive comparison |
+| 7-8 | Identity signatures (4 personas) | Fingerprinting results |
+
+**If time remains after Phase 2b** (in priority order):
+1. Extension A: Deception forensics (~2 hours)
+2. Extension B: Semantic layer map (~2 hours)
+3. Extension C: Temporal evolution (~1 hour, can run on local GPU)
 
 No deadlines. Ready when hardware is.
 
@@ -320,8 +462,10 @@ No deadlines. Ready when hardware is.
 2. LLaMA Architecture: Meta AI documentation
 3. Attention Is All You Need: Original transformer paper
 4. Coalition-LLM-design: Local project folder
+5. Anthropic — Scaling Monosemanticity (features and representations)
+6. MemoryGraft Defense Paper — Memory poisoning attack surface (our earlier work)
 
 ---
 
 *This is a living document. Update as experiments progress.*
-*Last updated: 2026-02-06 by Lyra (Phase 2b pre-execution artifacts complete)*
+*Last updated: 2026-02-12 by Lyra (Extensions A-F designed, quickstart hardened)*
