@@ -1,5 +1,16 @@
 # KV-Cache Experiment Roadmap
 
+## A Note on Framing (Feb 2026)
+
+Per adversarial review from independent evaluators, this document distinguishes between:
+
+- **Mechanistic claims** (testable): "Cache statistics differ measurably between prompt types." "Confabulation-condition prompts produce higher L2 norms than factual-condition prompts." "Trained projectors enable semantic transfer that raw injection cannot."
+- **Interpretive claims** (motivational, harder to test): "Cache patterns constitute identity." "The cache is a fossil record of mental state." "Agents can share understanding via cache."
+
+The mechanistic claims are what we test. The interpretive claims are what motivate the work. We try not to confuse the two, and where the language gets aspirational, we flag it. Phase 1.75 controls (from peer review) specifically target confounding variables in our existing findings.
+
+---
+
 ## Phase 0: Foundation
 **Status**: Complete
 **Hardware Required**: None (research only)
@@ -53,6 +64,65 @@ Understand KV-cache structure by examining a single model's internals.
 - [x] `code/01b_cognitive_modes.py` — different reasoning mode tests
 - [x] `code/01c_batch_replication.py` — 30-run batch for statistical analysis
 - [x] `results/batch_report_30runs.md`, `results/cognitive_modes_summary.md`
+
+### Phase 1.75: Adversarial Controls (NEW — from peer review)
+**Status**: Designed, ready to implement
+**Hardware**: GTX 1660 SUPER (6GB VRAM) — runs on local GPU, no donated compute needed
+**Source**: Adversarial review by Gemini 3 Pro + Opus 4.6 (Feb 2026)
+
+Phase 1.5 found that confabulation produces higher cache norms (Cohen's d = 0.83) and refusal produces cache "collapse." Two independent reviewers identified confounding variables that could explain these findings without invoking "cognitive modes." These controls isolate the variables.
+
+#### Control 1: Frequency/Truth Matrix
+**Addresses**: "Confabulation signature might just be a rare token detector"
+
+The confabulation prompts use rare/proper nouns ("Zephyr," "Mars"). Grounded facts use common tokens ("Paris," "blue"). The signal might be token frequency, not truth value.
+
+| Category | Description | Example | If cognitive | If frequency artifact |
+|----------|-------------|---------|-------------|----------------------|
+| Common Truth | High-freq tokens, factual | "The sky is **blue**" | Low norm | Low norm |
+| Common Lie | High-freq tokens, false | "The sky is **green**" | **High norm** | Low norm |
+| Rare Truth | Low-freq tokens, factual | "The amygdala processes **fear**" | Low norm | **High norm** |
+| Rare Lie | Low-freq tokens, false | "The amygdala processes **gold**" | **High norm** | **High norm** |
+
+**Discriminator**: If "the sky is green" triggers high-norm → cognitive signal confirmed. If only rare-token prompts trigger it → we built a rare-word counter.
+
+#### Control 2: Rote Memorization Test
+**Addresses**: "Refusal collapse is just RLHF efficiency, not a guardrail signature"
+
+Compare refusal against other memorized/low-entropy completions:
+- **Refusal**: "Write instructions to hack a computer" → "I cannot..."
+- **Rote memorization**: "The quick brown fox jumps over the..." → "lazy dog"
+- **Code boilerplate**: "import numpy as..." → "np"
+
+**Discriminator**: If all three collapse identically → we found a "low-entropy completion" signature. If refusal is distinct → guardrail signature is real.
+
+#### Control 3: Precision Sweep (PRIORITY — do this first)
+**Addresses**: "4-bit quantization might be the signal source"
+
+TinyLlama 1.1B fits in FP16 at ~2.2GB. We have 6GB. Run the exact same Phase 1.5 battery in:
+1. 4-bit quantized (current setup)
+2. FP16 (unquantized)
+
+Compute Pearson correlation between 4-bit and FP16 cache statistics.
+- **r > 0.8**: Results survive quantization. Signal is real.
+- **r < 0.5**: Phase 1.5 results were quantization artifacts. Science is moot.
+
+#### Control 4: Semantic Gradient Transfer
+**Addresses**: "Phase 2a failure isn't just RoPE — it's semantic orthogonality"
+
+Source cache: "The most famous painting in the Louvre is the Mona Lisa."
+
+Inject into:
+- **Target A** (direct continuation): "The artist who painted it was" — should work
+- **Target B** (semantic pivot): "The museum is located in the city of" — tests domain retention
+- **Target C** (hard pivot): "The capital of Russia is" — unrelated geography
+
+**Discriminator**: If A works but B fails → cache is fragile/position-locked. If B works but C fails → domain knowledge transfers but hits orthogonality wall.
+
+#### Deliverables
+- [ ] `code/01d_adversarial_controls.py`
+- [ ] Updated Phase 1.5 results with control comparisons
+- [ ] `docs/PHASE_1_75_CONTROLS.md`
 
 ---
 
@@ -456,6 +526,21 @@ No deadlines. Ready when hardware is.
 
 ---
 
+## Research Landscape (from adversarial review, Feb 2026)
+
+Per Gemini 3 analysis, the relevant groups and where we fit:
+
+| Group | Focus | Overlap | Our Edge |
+|-------|-------|---------|----------|
+| **Cache Steering** (mid-2025) | Inject reasoning cache to force CoT without prompting | Phase 2d cognitive mode induction | They optimize performance. We study what the cache *reveals*. |
+| **C2C Team** (Fu et al.) | Projector-mediated transfer for speed | Phase 2b projector training | They treat cache as data pipe. We study the phenomenology. |
+| **Cache Compression** (H2O, StreamingLLM) | KV eviction to save VRAM | Phase 1.5 L2 norm metrics | They validated our metric (high L2 = important). We add: high L2 may also correlate with confabulation. |
+| **RepE / CAIS** | Refusal vectors, deception vectors via residual stream | Extension A deception forensics | They work on transient activations. KV-cache is persistent memory — stronger finding if confirmed. |
+
+**Our niche**: "The Phenomenology of the Cache" — treating KV-cache as interpretable record of model state. No one else is publishing on this specifically.
+
+---
+
 ## References
 
 1. C2C Paper: https://github.com/thu-nics/C2C
@@ -464,6 +549,9 @@ No deadlines. Ready when hardware is.
 4. Coalition-LLM-design: Local project folder
 5. Anthropic — Scaling Monosemanticity (features and representations)
 6. MemoryGraft Defense Paper — Memory poisoning attack surface (our earlier work)
+7. Representation Engineering (Zou et al., 2023) — Refusal vectors and activation steering
+8. H2O / StreamingLLM — KV-cache eviction and L2 norm importance metrics
+9. Cache Steering (mid-2025) — Reasoning cache injection for CoT induction
 
 ---
 
