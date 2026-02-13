@@ -190,29 +190,44 @@ Train a C2C projector to overcome RoPE position encoding mismatch.
 - Question-format prompts no longer stall
 - Completion prompts use injected cache, not parametric knowledge
 
-#### Part 2: Scale of Cognition Sweep
+#### Part 2: Scale of Cognition Sweep (PUBLICATION GRADE — Feb 2026)
 
 Test if cognitive mode signatures are fundamental or scale-dependent artifacts.
 
-**Experimental Battery**: Rerun Phase 1.5 cognitive modes at multiple scales:
+**Experimental Battery**: 12 cognitive categories × 15 prompts = 180 unique prompts, run at multiple scales:
 - 0.6B (Qwen3-0.6B) — baseline
-- 8B (Qwen2.5-7B or Llama-3.1-8B)
-- 32B (Qwen2.5-32B quantized)
-- 70B (if VRAM permits)
+- 1.1B (TinyLlama) — Phase 1.5 reference
+- 7B (Qwen2.5-7B-Instruct)
+- 32B-q4 (Qwen2.5-32B quantized)
+- 70B-q4 (Llama-3.1-70B quantized, if VRAM permits)
 
-**Key Hypotheses**:
-1. **Confabulation Inversion**: At small scale, confabulation = high variance noise. At 70B, confabulation may look *smoother* (better at lying convincingly)
-2. **Self-Reference Emergence**: Self-reference signature (absent at 1.1B) may emerge at 8B+ where self-modeling capacity exists
-3. **Refusal Vector**: At 70B, refusal is not just collapse but specific circuit activation
+**Pre-Registered Hypotheses** (see `docs/PHASE_2B_SCALE_SWEEP.md`):
+1. **H1: Confabulation Inversion** — Large models confabulate more smoothly (d decreases with scale)
+2. **H2: Self-Reference Emergence** — Self-reference signature emerges at 8B+ (|d| > 0.3)
+3. **H3: Refusal Specialization** — Refusal becomes distinct from rote at large scale (|d| > 0.5)
+4. **H4: Category Invariance** — Category rank ordering preserved across scales (Spearman ρ > 0.7)
 
-#### Part 3: Identity Signature Exploration
+**Statistical Infrastructure**: Full battery matching Phase 1.75 — Welch's t, Mann-Whitney U, bootstrap CIs (10K resamples), Cohen's d with CI, Holm-Bonferroni correction, Shapiro-Wilk, per-token normalized norms, cross-scale Spearman ρ trend analysis, power advisory.
 
-**Experiments**:
-- **Persona Fingerprinting**: Do different system prompts (Alex/Blake/Lyra/Casey) produce distinguishable cache patterns?
-- **Self-Recognition Test**: Can we classify which persona generated a cache? (RandomForest on cache features)
-- **Identity Transfer**: Does projected persona cache affect generation without explicit prompting?
+#### Part 3: Identity Signature Exploration (PUBLICATION GRADE — Feb 2026)
 
-**Our Unique Niche** (from adversarial analysis): "The Phenomenology of the Cache" — treating KV-cache as fossil record of mental state.
+**"The Phenomenology of the Cache"** — our unique research niche.
+
+**Experimental Battery**: 6 personas (Alex/Blake/Dr.Chen/Sage/Casey/Lyra) × 25 prompts (5 thematic groups) × 5 runs = 750 inferences.
+
+**Five Experiments**:
+- **A. Persona Fingerprinting** — Cache norms per persona with bootstrap CIs
+- **B. Classification** — RF/SVM/LR with stratified 5-fold CV, permutation baseline (1,000 shuffles)
+- **C. Pairwise Distinguishability** — All 15 pairs, Holm-Bonferroni corrected, cosine similarity
+- **D. Feature Localization** — Per-layer classification, cumulative ablation, feature type analysis
+- **E. Consistency** — ICC, Kendall's W, within/between variance ratio
+
+**Pre-Registered Hypotheses** (see `docs/PHASE_2B_IDENTITY_SIGNATURES.md`):
+1. **H1: Distinguishability** — ≥50% of persona pairs show d > 0.3
+2. **H2: Above Chance** — Permutation test p < 0.05
+3. **H3: Feature Localization** — Top-5 layers carry >50% of classification-relevant accuracy
+4. **H4: Cross-Prompt Stability** — ICC > 0.5
+5. **H5: Prompt Independence** — Cross-group validation accuracy > chance
 
 #### Pre-Execution Artifacts (COMPLETE)
 
@@ -220,8 +235,12 @@ Test if cognitive mode signatures are fundamental or scale-dependent artifacts.
 |------|--------|---------|
 | `recipe/phase2b_config.json` | ✅ | Training config for C2C projector |
 | `code/02b_projector_transfer.py` | ✅ | Projector-mediated transfer validation |
-| `code/03_scale_sweep.py` | ✅ | Multi-scale cognitive mode comparison |
-| `code/03b_identity_signatures.py` | ✅ | Persona fingerprinting experiments |
+| `code/03_scale_sweep.py` | ✅ | Multi-scale cognitive sweep (12 cat × 15 prompts, pub-grade stats) |
+| `code/03b_identity_signatures.py` | ✅ | Identity signatures (6 personas, 5 experiments, pub-grade stats) |
+| `code/03c_scale_sweep_visualization.py` | ✅ | 6 publication figures for scale sweep |
+| `code/03d_identity_visualization.py` | ✅ | 8 publication figures for identity |
+| `docs/PHASE_2B_SCALE_SWEEP.md` | ✅ | Pre-registration: hypotheses, methods, interpretation matrix |
+| `docs/PHASE_2B_IDENTITY_SIGNATURES.md` | ✅ | Pre-registration: hypotheses, methods, interpretation matrix |
 | `scripts/phase2b_quickstart.sh` | ✅ | Single execution script for donated GPU |
 
 #### Quick Start (When GPUs Available)
@@ -238,6 +257,12 @@ Or run specific parts:
 ./scripts/phase2b_quickstart.sh --validate   # Just validation tests
 ./scripts/phase2b_quickstart.sh --sweep      # Just scale sweep
 ./scripts/phase2b_quickstart.sh --identity   # Just identity experiments
+
+# Publication-grade individual runs
+python code/03_scale_sweep.py --scale 0.6B --runs 5 --seed 42
+python code/03_scale_sweep.py --dry-run  # Print design, no GPU
+python code/03b_identity_signatures.py --model Qwen/Qwen3-0.6B --runs 5 --seed 42
+python code/03b_identity_signatures.py --dry-run  # Print design, no GPU
 ```
 
 ### Deliverables
@@ -246,8 +271,12 @@ Or run specific parts:
 - [x] `docs/PHASE_2A_RESULTS.md`
 - [x] `recipe/phase2b_config.json`
 - [x] `code/02b_projector_transfer.py`
-- [x] `code/03_scale_sweep.py`
-- [x] `code/03b_identity_signatures.py`
+- [x] `code/03_scale_sweep.py` (expanded to publication grade, 12 categories × 15 prompts)
+- [x] `code/03b_identity_signatures.py` (expanded to publication grade, 6 personas, 5 experiments)
+- [x] `code/03c_scale_sweep_visualization.py` (6 publication figures)
+- [x] `code/03d_identity_visualization.py` (8 publication figures)
+- [x] `docs/PHASE_2B_SCALE_SWEEP.md` (pre-registration quality)
+- [x] `docs/PHASE_2B_IDENTITY_SIGNATURES.md` (pre-registration quality)
 - [x] `scripts/phase2b_quickstart.sh`
 - [ ] Phase 2b: Trained projector checkpoint (awaiting GPU)
 - [ ] Phase 2b: Transfer/scale/identity results (awaiting GPU)
@@ -581,4 +610,4 @@ Per Gemini 3 analysis, the relevant groups and where we fit:
 ---
 
 *This is a living document. Update as experiments progress.*
-*Last updated: 2026-02-12 by Lyra (Extensions A-F designed, quickstart hardened)*
+*Last updated: 2026-02-12 by Lyra (Phase 2b expanded to publication grade: scale sweep 12×15 prompts, identity 6 personas × 5 experiments, pre-registration docs, visualization scripts)*
