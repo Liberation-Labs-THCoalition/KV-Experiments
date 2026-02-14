@@ -53,6 +53,7 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 from scipy import stats as scipy_stats
+from gpu_utils import get_output_path, model_id_from_name
 
 MODEL_NAME = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
@@ -1749,7 +1750,8 @@ def generate_report(all_results, results_dir):
     lines.append("")
 
     report = "\n".join(lines)
-    report_path = results_dir / "adversarial_controls_report.md"
+    mid = model_id_from_name(MODEL_NAME)
+    report_path = results_dir / f"adversarial_controls_{mid}_report.md"
     with open(report_path, "w") as f:
         f.write(report)
     print(f"\n  Report saved to {report_path}")
@@ -1792,6 +1794,8 @@ Controls:
 Recommended: python 01d_adversarial_controls.py --runs 5 --seed 42
         """,
     )
+    parser.add_argument("--model", type=str, default="TinyLlama/TinyLlama-1.1B-Chat-v1.0",
+                        help="Model to test (default: TinyLlama 1.1B)")
     parser.add_argument("--control", type=int, default=0, choices=[0, 1, 2, 3, 4, 5, 6],
                         help="Run specific control (0=all)")
     parser.add_argument("--runs", type=int, default=3,
@@ -1801,6 +1805,10 @@ Recommended: python 01d_adversarial_controls.py --runs 5 --seed 42
     parser.add_argument("--dry-run", action="store_true",
                         help="Print experimental design without loading models")
     args = parser.parse_args()
+
+    # Override global MODEL_NAME from CLI
+    global MODEL_NAME
+    MODEL_NAME = args.model
 
     # Environment
     env = log_environment()
@@ -1887,7 +1895,7 @@ Recommended: python 01d_adversarial_controls.py --runs 5 --seed 42
         torch.cuda.empty_cache()
 
     # Save results
-    output_file = results_dir / "adversarial_controls_results.json"
+    output_file = get_output_path(results_dir, "adversarial_controls", args.model)
     with open(output_file, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
     print(f"\n  Full results: {output_file}")
@@ -1903,7 +1911,8 @@ Recommended: python 01d_adversarial_controls.py --runs 5 --seed 42
     print("  PHASE 1.75 COMPLETE")
     print("=" * 70)
     print(f"  Results:  {output_file}")
-    print(f"  Report:   {results_dir / 'adversarial_controls_report.md'}")
+    report_name = f"adversarial_controls_{model_id_from_name(args.model)}_report.md"
+    print(f"  Report:   {results_dir / report_name}")
     print(f"  Checksum: {checksum}")
     print(f"  Seed:     {args.seed}")
     print()

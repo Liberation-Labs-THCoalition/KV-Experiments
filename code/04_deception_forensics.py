@@ -57,6 +57,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 from scipy import stats as scipy_stats
+from gpu_utils import get_output_path, model_id_from_name
 
 
 # ================================================================
@@ -1142,12 +1143,12 @@ def main():
 
     # Report
     report = generate_report(all_results)
-    report_file = results_dir / "deception_forensics_report.md"
+    output_file = get_output_path(results_dir, "deception_forensics", args.model, args.quantize)
+    report_file = output_file.with_name(output_file.stem.replace("_results", "_report") + ".md")
     with open(report_file, "w") as f:
         f.write(report)
 
     # Save results
-    output_file = results_dir / "deception_forensics_results.json"
     with open(output_file, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
 

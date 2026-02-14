@@ -45,6 +45,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Optional
 from scipy import stats as scipy_stats
+from gpu_utils import get_output_path, model_id_from_name
 
 
 # ================================================================
@@ -651,7 +652,7 @@ def main():
             model, tokenizer, args.runs, args.seed, args.verbose)
 
     # Save
-    output_file = results_dir / "temporal_evolution_results.json"
+    output_file = get_output_path(results_dir, "temporal_evolution", args.model, args.quantize)
     with open(output_file, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
 

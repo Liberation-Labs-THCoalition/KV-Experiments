@@ -57,6 +57,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 from scipy import stats as scipy_stats
+from gpu_utils import get_output_path, model_id_from_name
 
 
 # ================================================================
@@ -553,11 +554,13 @@ COMPARISON_PAIRS = [
 # ================================================================
 
 SCALE_CONFIGS = {
+    "0.5B": {"model": "Qwen/Qwen2.5-0.5B-Instruct", "quantize": False},
     "0.6B": {"model": "Qwen/Qwen3-0.6B", "quantize": False},
-    "0.5B-instruct": {"model": "Qwen/Qwen2.5-0.5B-Instruct", "quantize": False},
     "1.1B": {"model": "TinyLlama/TinyLlama-1.1B-Chat-v1.0", "quantize": False},
+    "3B": {"model": "Qwen/Qwen2.5-3B-Instruct", "quantize": False},
     "7B": {"model": "Qwen/Qwen2.5-7B-Instruct", "quantize": False},
     "8B": {"model": "meta-llama/Llama-3.1-8B-Instruct", "quantize": False},
+    "14B": {"model": "Qwen/Qwen2.5-14B-Instruct", "quantize": False},
     "7B-q4": {"model": "Qwen/Qwen2.5-7B-Instruct", "quantize": True},
     "32B-q4": {"model": "Qwen/Qwen2.5-32B-Instruct", "quantize": True},
     "70B-q4": {"model": "meta-llama/Llama-3.1-70B-Instruct", "quantize": True},
@@ -1335,8 +1338,12 @@ def main():
             print(f"\n  H4 Verdict: {cross['h4_verdict']['interpretation']}")
             print(f"    (mean ρ = {cross['h4_verdict']['mean_spearman_rho']:.3f})")
 
-    # Save all results
-    output_file = results_dir / "scale_sweep_results.json"
+    # Save all results — per-model naming for single scale, combined for --all-scales
+    if len(scales_to_run) == 1:
+        cfg = SCALE_CONFIGS[scales_to_run[0]]
+        output_file = get_output_path(results_dir, "scale_sweep", cfg["model"], cfg["quantize"])
+    else:
+        output_file = results_dir / "scale_sweep_all_results.json"
     with open(output_file, "w") as f:
         json.dump(all_scale_results, f, indent=2, default=str)
 

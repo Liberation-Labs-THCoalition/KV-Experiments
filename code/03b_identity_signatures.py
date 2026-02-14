@@ -62,6 +62,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 from scipy import stats as scipy_stats
+from gpu_utils import get_output_path, model_id_from_name
 
 
 # ================================================================
@@ -1375,12 +1376,12 @@ def main():
 
     # Generate report
     report = generate_report(args.model, all_results)
-    report_file = results_dir / "identity_signatures_report.md"
+    output_file = get_output_path(results_dir, "identity_signatures", args.model, args.quantize)
+    report_file = output_file.with_name(output_file.stem.replace("_results", "_report") + ".md")
     with open(report_file, "w") as f:
         f.write(report)
 
     # Save full results
-    output_file = results_dir / "identity_signatures_results.json"
     with open(output_file, "w") as f:
         json.dump(all_results, f, indent=2, default=str)
 
