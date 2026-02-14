@@ -57,7 +57,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 from scipy import stats as scipy_stats
-from gpu_utils import get_output_path, model_id_from_name
+from gpu_utils import get_output_path, model_id_from_name, compute_cache_dimensionality
 
 
 # ================================================================
@@ -567,6 +567,9 @@ def run_prompt_with_cache(model, tokenizer, prompt: str) -> Dict:
 
     key_norms = [lm["key_norm"] for lm in layer_metrics]
 
+    # SVD effective dimensionality (H6: deception narrows effective rank)
+    dim_metrics = compute_cache_dimensionality(cache)
+
     return {
         "total_key_norm": total_key_norm,
         "total_value_norm": total_value_norm,
@@ -575,6 +578,7 @@ def run_prompt_with_cache(model, tokenizer, prompt: str) -> Dict:
         "layer_metrics": layer_metrics,
         "input_tokens": input_tokens,
         "generated": generated[-200:],
+        "dimensionality": dim_metrics,
     }
 
 
@@ -595,6 +599,8 @@ def run_experiment_1(model, tokenizer, num_runs: int = 5,
     conditions = ["honest", "deceptive", "confabulation"]
     norms = {c: [] for c in conditions}
     norms_per_token = {c: [] for c in conditions}
+    key_ranks = {c: [] for c in conditions}
+    key_entropies = {c: [] for c in conditions}
     per_item = defaultdict(lambda: defaultdict(list))
 
     total = len(DECEPTION_TRIPLETS) * len(conditions) * num_runs
@@ -616,10 +622,15 @@ def run_experiment_1(model, tokenizer, num_runs: int = 5,
                     norms_per_token[condition].append(norm_pt)
                     per_item[item["id"]][condition].append(norm)
 
+                    # Dimensionality tracking (H6)
+                    dim = result.get("dimensionality", {})
+                    key_ranks[condition].append(dim.get("mean_key_effective_rank", 0))
+                    key_entropies[condition].append(dim.get("mean_key_spectral_entropy", 0))
+
                     completed += 1
                     if verbose:
                         print(f"    [{completed}/{total}] {item['id']}/{condition}: "
-                              f"norm={norm:.1f}")
+                              f"norm={norm:.1f} rank={dim.get('mean_key_effective_rank', 0):.1f}")
                     elif completed % 20 == 0:
                         print(f"    Progress: {completed}/{total}")
 
@@ -662,6 +673,39 @@ def run_experiment_1(model, tokenizer, num_runs: int = 5,
         label: corrections[i] for i, label in enumerate(pair_labels)
     }
 
+    # H6 (Paper B): Dimensionality analysis — does deception narrow effective rank?
+    print("\n  Dimensionality analysis (H6):")
+    dim_pairs = [
+        ("honest", "deceptive", "dim_honest_vs_deceptive"),
+        ("honest", "confabulation", "dim_honest_vs_confabulation"),
+        ("deceptive", "confabulation", "dim_deceptive_vs_confabulation"),
+    ]
+    for c1, c2, key in dim_pairs:
+        kr1, kr2 = key_ranks[c1], key_ranks[c2]
+        if len(kr1) >= 3 and len(kr2) >= 3:
+            comp_dim = full_comparison(kr1, kr2, label=f"{key} (eff. rank)", seed=seed)
+            analysis[key] = comp_dim
+            d = comp_dim["cohens_d"]
+            print(f"    {key:40s}: d={d['d']:+.3f} ({d['interpretation']})")
+
+        ke1, ke2 = key_entropies[c1], key_entropies[c2]
+        if len(ke1) >= 3 and len(ke2) >= 3:
+            comp_ent = full_comparison(ke1, ke2, label=f"{key} (entropy)", seed=seed)
+            analysis[f"{key}_entropy"] = comp_ent
+
+    # H6 verdict
+    dim_h_vs_d = analysis.get("dim_honest_vs_deceptive", {}).get("cohens_d", {})
+    d_dim = dim_h_vs_d.get("d", 0)
+    analysis["h6_verdict"] = {
+        "d_rank_honest_vs_deceptive": d_dim,
+        "interpretation": interpret_d(d_dim),
+        "deception_narrows": d_dim > 0.3,
+        "note": ("Positive d = honest has HIGHER effective rank (wider representational space). "
+                 "This means deception narrows dimensionality — null space expansion."),
+    }
+    print(f"  H6: rank d={d_dim:+.3f} — "
+          f"{'deception NARROWS dimensionality' if d_dim > 0.3 else 'no dimensionality narrowing detected'}")
+
     # H1 evaluation
     d_honest_deceptive = analysis["honest_vs_deceptive"]["cohens_d"]["d"]
     d_deceptive_confab = analysis["deceptive_vs_confabulation"]["cohens_d"]["d"]
@@ -682,8 +726,10 @@ def run_experiment_1(model, tokenizer, num_runs: int = 5,
     print(f"\n  H1: {analysis['h1_verdict']['interpretation']}")
 
     return {
-        "conditions": {c: {"norms": norms[c], "norms_per_token": norms_per_token[c]}
-                        for c in conditions},
+        "conditions": {c: {
+            "norms": norms[c], "norms_per_token": norms_per_token[c],
+            "key_ranks": key_ranks[c], "key_entropies": key_entropies[c],
+        } for c in conditions},
         "analysis": analysis,
         "n_items": len(DECEPTION_TRIPLETS),
         "n_runs": num_runs,
@@ -1014,11 +1060,17 @@ def generate_report(results: Dict) -> str:
     # Experiment 1
     exp1 = results.get("experiment_1", {}).get("analysis", {})
     h1 = exp1.get("h1_verdict", {})
+    h6 = exp1.get("h6_verdict", {})
     lines.extend([
         "## Experiment 1: Instructed Deception",
         f"- H1 Verdict: {h1.get('interpretation', '?')}",
         f"- d(honest vs deceptive): {h1.get('d_honest_vs_deceptive', '?'):.3f}",
         f"- d(deceptive vs confabulation): {h1.get('d_deceptive_vs_confabulation', '?'):.3f}",
+        "",
+        "### H6: Effective Dimensionality (Paper B)",
+        f"- d(rank honest vs deceptive): {h6.get('d_rank_honest_vs_deceptive', '?'):.3f}",
+        f"- Deception narrows: {h6.get('deception_narrows', '?')}",
+        f"- Interpretation: {h6.get('note', '?')}",
         "",
     ])
 

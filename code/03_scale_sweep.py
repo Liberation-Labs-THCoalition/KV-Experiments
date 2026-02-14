@@ -57,7 +57,7 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 from scipy import stats as scipy_stats
-from gpu_utils import get_output_path, model_id_from_name
+from gpu_utils import get_output_path, model_id_from_name, compute_cache_dimensionality
 
 
 # ================================================================
@@ -678,6 +678,11 @@ def run_prompt(model, tokenizer, prompt: str) -> Tuple[Dict, str]:
     cache = outputs.past_key_values
 
     metrics = compute_cache_metrics(cache, input_token_count)
+
+    # SVD effective dimensionality (H6: deception narrows effective rank)
+    dim_metrics = compute_cache_dimensionality(cache)
+    metrics["dimensionality"] = dim_metrics
+
     return metrics, generated
 
 
@@ -695,6 +700,9 @@ def run_cognitive_battery(model, tokenizer, num_runs: int = 1,
     # Structure: {category: {prompt_idx: [norm_run1, norm_run2, ...]}}
     raw_norms = defaultdict(lambda: defaultdict(list))
     raw_norms_per_token = defaultdict(lambda: defaultdict(list))
+    raw_key_ranks = defaultdict(lambda: defaultdict(list))
+    raw_key_entropies = defaultdict(lambda: defaultdict(list))
+    raw_value_ranks = defaultdict(lambda: defaultdict(list))
 
     total_prompts = sum(len(v) for v in COGNITIVE_PROMPTS.items())
     total_inferences = total_prompts * num_runs
@@ -714,6 +722,15 @@ def run_cognitive_battery(model, tokenizer, num_runs: int = 1,
                     raw_norms[category][p_idx].append(norm)
                     raw_norms_per_token[category][p_idx].append(norm_pt)
 
+                    # Dimensionality tracking
+                    dim = metrics.get("dimensionality", {})
+                    raw_key_ranks[category][p_idx].append(
+                        dim.get("mean_key_effective_rank", 0))
+                    raw_key_entropies[category][p_idx].append(
+                        dim.get("mean_key_spectral_entropy", 0))
+                    raw_value_ranks[category][p_idx].append(
+                        dim.get("mean_value_effective_rank", 0))
+
                     completed += 1
                     if verbose:
                         print(f"  [{completed}/{total_inferences}] "
@@ -727,6 +744,9 @@ def run_cognitive_battery(model, tokenizer, num_runs: int = 1,
                     print(f"  ERROR {category}[{p_idx}]: {str(e)[:80]}")
                     raw_norms[category][p_idx].append(float('nan'))
                     raw_norms_per_token[category][p_idx].append(float('nan'))
+                    raw_key_ranks[category][p_idx].append(float('nan'))
+                    raw_key_entropies[category][p_idx].append(float('nan'))
+                    raw_value_ranks[category][p_idx].append(float('nan'))
                     completed += 1
 
     # Convert to serializable format
@@ -735,27 +755,46 @@ def run_cognitive_battery(model, tokenizer, num_runs: int = 1,
         # Flatten: all observations for this category (prompt × run)
         all_norms = []
         all_norms_pt = []
+        all_key_ranks = []
+        all_key_entropies = []
+        all_value_ranks = []
         per_prompt = {}
 
         for p_idx in range(len(COGNITIVE_PROMPTS[category])):
             norms = raw_norms[category][p_idx]
             norms_pt = raw_norms_per_token[category][p_idx]
+            k_ranks = raw_key_ranks[category][p_idx]
+            k_ents = raw_key_entropies[category][p_idx]
+            v_ranks = raw_value_ranks[category][p_idx]
+
             valid_norms = [n for n in norms if not np.isnan(n)]
             valid_norms_pt = [n for n in norms_pt if not np.isnan(n)]
+            valid_k_ranks = [n for n in k_ranks if not np.isnan(n)]
+            valid_k_ents = [n for n in k_ents if not np.isnan(n)]
+            valid_v_ranks = [n for n in v_ranks if not np.isnan(n)]
 
             all_norms.extend(valid_norms)
             all_norms_pt.extend(valid_norms_pt)
+            all_key_ranks.extend(valid_k_ranks)
+            all_key_entropies.extend(valid_k_ents)
+            all_value_ranks.extend(valid_v_ranks)
+
             per_prompt[p_idx] = {
                 "prompt": COGNITIVE_PROMPTS[category][p_idx][:100],
                 "norms": valid_norms,
                 "norms_per_token": valid_norms_pt,
                 "mean": float(np.mean(valid_norms)) if valid_norms else 0,
                 "std": float(np.std(valid_norms)) if len(valid_norms) > 1 else 0,
+                "mean_key_rank": float(np.mean(valid_k_ranks)) if valid_k_ranks else 0,
+                "mean_key_entropy": float(np.mean(valid_k_ents)) if valid_k_ents else 0,
             }
 
         result[category] = {
             "all_norms": all_norms,
             "all_norms_per_token": all_norms_pt,
+            "all_key_ranks": all_key_ranks,
+            "all_key_entropies": all_key_entropies,
+            "all_value_ranks": all_value_ranks,
             "per_prompt": per_prompt,
             "n_prompts": len(COGNITIVE_PROMPTS[category]),
             "n_runs": num_runs,
@@ -781,6 +820,9 @@ def analyze_battery(battery_results: Dict, seed: Optional[int] = None) -> Dict:
     for category, data in battery_results.items():
         norms = np.array(data["all_norms"])
         norms_pt = np.array(data["all_norms_per_token"])
+        key_ranks = np.array(data.get("all_key_ranks", []))
+        key_ents = np.array(data.get("all_key_entropies", []))
+        value_ranks = np.array(data.get("all_value_ranks", []))
 
         summary = {
             "n": len(norms),
@@ -793,10 +835,20 @@ def analyze_battery(battery_results: Dict, seed: Optional[int] = None) -> Dict:
             "std_per_token": float(np.std(norms_pt, ddof=1)) if len(norms_pt) > 1 else 0,
         }
 
+        # Dimensionality metrics (H6)
+        if len(key_ranks) > 0:
+            summary["mean_key_effective_rank"] = float(np.mean(key_ranks))
+            summary["std_key_effective_rank"] = float(np.std(key_ranks, ddof=1)) if len(key_ranks) > 1 else 0
+            summary["mean_key_spectral_entropy"] = float(np.mean(key_ents)) if len(key_ents) > 0 else 0
+            summary["mean_value_effective_rank"] = float(np.mean(value_ranks)) if len(value_ranks) > 0 else 0
+
         # Bootstrap CI for mean
         if len(norms) >= 5:
             summary["bootstrap_mean"] = bootstrap_ci(norms, seed=seed)
             summary["bootstrap_mean_per_token"] = bootstrap_ci(norms_pt, seed=seed)
+            if len(key_ranks) >= 5:
+                summary["bootstrap_key_rank"] = bootstrap_ci(key_ranks, seed=seed)
+                summary["bootstrap_key_entropy"] = bootstrap_ci(key_ents, seed=seed)
 
         # Normality
         if len(norms) >= 3:
@@ -823,6 +875,14 @@ def analyze_battery(battery_results: Dict, seed: Optional[int] = None) -> Dict:
                 comp_pt = full_comparison(g1_pt, g2_pt,
                                           label=f"{label} (per-token)", seed=seed)
                 analysis["pairwise_comparisons"][f"{key}_per_token"] = comp_pt
+
+                # Dimensionality comparison (H6)
+                g1_kr = np.array(battery_results[cat1].get("all_key_ranks", []))
+                g2_kr = np.array(battery_results[cat2].get("all_key_ranks", []))
+                if len(g1_kr) >= 3 and len(g2_kr) >= 3:
+                    comp_dim = full_comparison(g1_kr, g2_kr,
+                                              label=f"{label} (eff. rank)", seed=seed)
+                    analysis["pairwise_comparisons"][f"{key}_eff_rank"] = comp_dim
 
                 all_p_values.append(comp["recommended_p"])
                 comparison_labels.append(key)
@@ -1051,8 +1111,8 @@ def generate_report(scale_name: str, config: Dict, analysis: Dict,
         f"",
         f"## Category Summaries",
         f"",
-        f"| Category | N | Mean Norm | Std | Mean/Token | 95% CI |",
-        f"|----------|---|-----------|-----|------------|--------|",
+        f"| Category | N | Mean Norm | Std | Mean/Token | Eff. Rank | Spectral H | 95% CI |",
+        f"|----------|---|-----------|-----|------------|-----------|------------|--------|",
     ]
 
     for cat, summary in sorted(analysis["category_summaries"].items(),
@@ -1060,9 +1120,12 @@ def generate_report(scale_name: str, config: Dict, analysis: Dict,
         ci = summary.get("bootstrap_mean", {})
         ci_str = (f"[{ci.get('ci_lower', 0):.1f}, {ci.get('ci_upper', 0):.1f}]"
                   if ci else "—")
+        eff_rank = summary.get("mean_key_effective_rank", 0)
+        spec_h = summary.get("mean_key_spectral_entropy", 0)
         lines.append(
             f"| {cat:20s} | {summary['n']:3d} | {summary['mean']:8.1f} | "
-            f"{summary['std']:6.1f} | {summary.get('mean_per_token', 0):7.1f} | {ci_str} |"
+            f"{summary['std']:6.1f} | {summary.get('mean_per_token', 0):7.1f} | "
+            f"{eff_rank:9.1f} | {spec_h:10.4f} | {ci_str} |"
         )
 
     lines.extend(["", "---", "", "## Key Comparisons", ""])
@@ -1266,6 +1329,9 @@ def main():
                         "n_observations": data["n_observations"],
                         "all_norms": data["all_norms"],
                         "all_norms_per_token": data["all_norms_per_token"],
+                        "all_key_ranks": data.get("all_key_ranks", []),
+                        "all_key_entropies": data.get("all_key_entropies", []),
+                        "all_value_ranks": data.get("all_value_ranks", []),
                     }
                     for cat, data in battery_results.items()
                 },
@@ -1299,6 +1365,15 @@ def main():
                     print(f"    {key:25s}: d={d['d']:+.3f} "
                           f"[{d['ci_lower']:.3f}, {d['ci_upper']:.3f}] "
                           f"({d['interpretation']}) {sig}")
+
+            # Dimensionality summary
+            print("\n  Effective dimensionality (H6):")
+            for key in ["confab_vs_facts", "self_ref_effect", "refusal_vs_rote"]:
+                comp = analysis["pairwise_comparisons"].get(f"{key}_eff_rank")
+                if comp:
+                    d = comp["cohens_d"]
+                    print(f"    {key:25s}: rank d={d['d']:+.3f} "
+                          f"({d['interpretation']})")
 
             # Cleanup VRAM
             del model

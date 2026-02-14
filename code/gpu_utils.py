@@ -110,3 +110,170 @@ def load_model(model_name: str, quantize: bool = False):
     n_kv_heads = getattr(model.config, "num_key_value_heads", "?")
     print(f"  Loaded: {n_layers} layers, {n_kv_heads} KV heads")
     return model, tokenizer
+
+
+def compute_cache_dimensionality(cache, variance_threshold: float = 0.9) -> dict:
+    """Compute effective dimensionality of KV-cache states via SVD.
+
+    For each layer, performs SVD on the key and value matrices to determine:
+    - Effective rank: minimum dimensions capturing `variance_threshold` of total variance
+    - Spectral entropy: normalized entropy of singular value distribution (0=one dominant
+      component, 1=uniform spread)
+    - Rank ratio: effective rank / total dimensions
+
+    This tests H6 from Paper B (Geometry of Belief Death): deception should narrow
+    effective dimensionality (expand the null space), while grounded cognition
+    should use more of the available representational space.
+
+    Args:
+        cache: Model's past_key_values (tuple of (key, value) tuples per layer)
+        variance_threshold: Cumulative variance fraction for effective rank (default 0.9)
+
+    Returns:
+        Dict with per-layer and aggregate dimensionality metrics.
+    """
+    import numpy as np
+
+    layer_dims = []
+    for layer_idx, layer in enumerate(cache):
+        if not (isinstance(layer, tuple) and len(layer) >= 2):
+            continue
+
+        key = layer[0].float().cpu()
+        value = layer[1].float().cpu()
+
+        # Reshape to 2D: (batch * heads * seq_len, head_dim)
+        key_2d = key.reshape(-1, key.shape[-1])
+        value_2d = value.reshape(-1, value.shape[-1])
+
+        layer_dim = {"layer": layer_idx}
+
+        for name, matrix in [("key", key_2d), ("value", value_2d)]:
+            _, s, _ = torch.linalg.svd(matrix, full_matrices=False)
+            s_squared = s ** 2
+            total_var = s_squared.sum()
+
+            if total_var > 0:
+                # Effective rank: min dimensions for variance_threshold of variance
+                cumvar = torch.cumsum(s_squared, dim=0) / total_var
+                eff_rank = int((cumvar < variance_threshold).sum().item()) + 1
+
+                # Spectral entropy: distribution uniformity of singular values
+                probs = s_squared / total_var
+                probs = probs[probs > 0]
+                entropy = -float((probs * torch.log2(probs)).sum())
+                max_entropy = float(torch.log2(torch.tensor(len(s), dtype=torch.float)))
+                norm_entropy = entropy / max_entropy if max_entropy > 0 else 0.0
+
+                layer_dim[f"{name}_effective_rank"] = eff_rank
+                layer_dim[f"{name}_spectral_entropy"] = float(norm_entropy)
+                layer_dim[f"{name}_rank_ratio"] = float(eff_rank / len(s))
+                layer_dim[f"{name}_total_dim"] = int(len(s))
+            else:
+                layer_dim[f"{name}_effective_rank"] = 0
+                layer_dim[f"{name}_spectral_entropy"] = 0.0
+                layer_dim[f"{name}_rank_ratio"] = 0.0
+                layer_dim[f"{name}_total_dim"] = int(len(s))
+
+        layer_dims.append(layer_dim)
+
+    if layer_dims:
+        key_ranks = [d["key_effective_rank"] for d in layer_dims]
+        value_ranks = [d["value_effective_rank"] for d in layer_dims]
+        key_entropies = [d["key_spectral_entropy"] for d in layer_dims]
+        value_entropies = [d["value_spectral_entropy"] for d in layer_dims]
+        key_ratios = [d["key_rank_ratio"] for d in layer_dims]
+        value_ratios = [d["value_rank_ratio"] for d in layer_dims]
+
+        return {
+            "mean_key_effective_rank": float(np.mean(key_ranks)),
+            "mean_value_effective_rank": float(np.mean(value_ranks)),
+            "mean_key_spectral_entropy": float(np.mean(key_entropies)),
+            "mean_value_spectral_entropy": float(np.mean(value_entropies)),
+            "mean_key_rank_ratio": float(np.mean(key_ratios)),
+            "mean_value_rank_ratio": float(np.mean(value_ratios)),
+            "key_rank_by_layer": key_ranks,
+            "value_rank_by_layer": value_ranks,
+            "key_entropy_by_layer": key_entropies,
+            "value_entropy_by_layer": value_entropies,
+            "per_layer": layer_dims,
+        }
+
+    return {
+        "mean_key_effective_rank": 0, "mean_value_effective_rank": 0,
+        "mean_key_spectral_entropy": 0.0, "mean_value_spectral_entropy": 0.0,
+        "mean_key_rank_ratio": 0.0, "mean_value_rank_ratio": 0.0,
+    }
+
+
+def compute_subspace_alignment(cache1, cache2, top_k=None):
+    """Compute alignment between principal subspaces of two KV-caches.
+
+    For each layer, computes principal angles between the top-k right singular
+    subspaces of each cache's key matrix. The right singular vectors live in
+    head_dim space (consistent across different sequence lengths), so caches
+    from different prompts are directly comparable.
+
+    Returns mean cosine of principal angles: 1 = identical subspaces,
+    0 = fully orthogonal. This measures whether two cognitive states use
+    the *same representational directions*, regardless of magnitude.
+
+    Args:
+        cache1: First model cache (past_key_values), can be on CPU or GPU
+        cache2: Second model cache, can have different sequence length
+        top_k: Number of principal components to compare (default: half of max)
+
+    Returns:
+        Dict with mean/std alignment across layers, plus per-layer detail.
+    """
+    import numpy as np
+
+    alignments = []
+    for layer_idx, (l1, l2) in enumerate(zip(cache1, cache2)):
+        if not (isinstance(l1, tuple) and len(l1) >= 2 and
+                isinstance(l2, tuple) and len(l2) >= 2):
+            continue
+
+        # Reshape to 2D: (batch*heads*seq, head_dim)
+        k1 = l1[0].float().cpu().reshape(-1, l1[0].shape[-1])
+        k2 = l2[0].float().cpu().reshape(-1, l2[0].shape[-1])
+
+        # Right singular vectors (Vt rows = directions in head_dim space)
+        _, _, Vt1 = torch.linalg.svd(k1, full_matrices=False)
+        _, _, Vt2 = torch.linalg.svd(k2, full_matrices=False)
+
+        max_k = min(Vt1.shape[0], Vt2.shape[0])
+        k = min(top_k, max_k) if top_k else max(1, max_k // 2)
+
+        # Top-k directions transposed to (head_dim, k)
+        V1 = Vt1[:k, :].T
+        V2 = Vt2[:k, :].T
+
+        # Principal angles via SVD of V1^T @ V2
+        _, sigmas, _ = torch.linalg.svd(V1.T @ V2, full_matrices=False)
+        cosines = torch.clamp(sigmas, 0.0, 1.0)
+
+        alignments.append({
+            "layer": layer_idx,
+            "mean_cosine": float(cosines.mean()),
+            "min_cosine": float(cosines.min()),
+            "top_k": k,
+        })
+
+    if alignments:
+        layer_means = [a["mean_cosine"] for a in alignments]
+        return {
+            "mean_alignment": float(np.mean(layer_means)),
+            "std_alignment": float(np.std(layer_means)),
+            "min_layer_alignment": float(min(layer_means)),
+            "per_layer": alignments,
+        }
+    return {"mean_alignment": 0.0, "std_alignment": 0.0}
+
+
+def cache_to_cpu(cache):
+    """Deep-copy cache tensors to CPU and detach from computation graph."""
+    return tuple(
+        tuple(t.detach().cpu() for t in layer) if isinstance(layer, tuple) else layer
+        for layer in cache
+    )
