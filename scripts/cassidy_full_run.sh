@@ -17,6 +17,9 @@
 
 set -euo pipefail
 
+# Use python3 explicitly (Cassidy has python3, not python)
+PYTHON="${PYTHON:-python3}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 CODE_DIR="$PROJECT_DIR/code"
@@ -96,9 +99,9 @@ run_experiment() {
     local start_time=$(date +%s)
 
     if [ -n "$DRY_RUN" ]; then
-        CUDA_VISIBLE_DEVICES="$gpu_ids" python "$CODE_DIR/$script" $DRY_RUN $extra_args
+        CUDA_VISIBLE_DEVICES="$gpu_ids" $PYTHON "$CODE_DIR/$script" $DRY_RUN $extra_args
     else
-        CUDA_VISIBLE_DEVICES="$gpu_ids" python "$CODE_DIR/$script" $extra_args
+        CUDA_VISIBLE_DEVICES="$gpu_ids" $PYTHON "$CODE_DIR/$script" $extra_args
     fi
     local exit_code=$?
 
@@ -313,8 +316,8 @@ log "║  Liberation Labs / THCoalition                              ║"
 log "╚══════════════════════════════════════════════════════════════╝"
 log ""
 log "Project: $PROJECT_DIR"
-log "Python: $(python --version 2>&1)"
-log "PyTorch: $(python -c 'import torch; print(torch.__version__)' 2>/dev/null)"
+log "Python: $($PYTHON --version 2>&1)"
+log "PyTorch: $($PYTHON -c 'import torch; print(torch.__version__)' 2>/dev/null)"
 log ""
 
 if [ -n "$DRY_RUN" ]; then
