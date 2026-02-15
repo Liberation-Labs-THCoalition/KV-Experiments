@@ -12,6 +12,7 @@ Figures:
   3. Uncertainty gradient (three-point gradient visualization)
   4. Layer-level heatmap (per-layer Cohen's d for deception signal)
   5. Effect size forest plot (all comparisons across experiments)
+  6b. Dimensionality gradient (H6: honest < deceptive < confabulation)
   6. Hypothesis decision dashboard (multi-panel summary)
 
 Usage:
@@ -370,6 +371,114 @@ def plot_forest(data, fig_dir, fmt):
 
 
 # ================================================================
+# FIGURE 6b: DIMENSIONALITY GRADIENT (H6)
+# ================================================================
+
+def plot_dimensionality_gradient(data, fig_dir, fmt):
+    """Bar chart of effective rank by condition: honest < deceptive < confabulation.
+
+    Shows the clear dimensionality gradient — confabulation saturates the
+    representational space while honest responses are compact.
+    """
+    exp1 = data.get("experiment_1", {})
+    analysis = exp1.get("analysis", {})
+
+    # Extract dimensionality comparisons
+    dim_pairs = [
+        ("dim_honest_vs_deceptive", "dim_honest_vs_confabulation",
+         "dim_deceptive_vs_confabulation"),
+    ]
+
+    dim_hd = analysis.get("dim_honest_vs_deceptive", {})
+    dim_hc = analysis.get("dim_honest_vs_confabulation", {})
+    dim_dc = analysis.get("dim_deceptive_vs_confabulation", {})
+
+    if not dim_hd or not dim_hc:
+        print("  [Skip] No H6 dimensionality data")
+        return
+
+    # Get means and stds
+    honest_rank = dim_hd.get("mean1", 0)
+    honest_std = dim_hd.get("std1", 0)
+    deceptive_rank = dim_hd.get("mean2", 0)
+    deceptive_std = dim_hd.get("std2", 0)
+    confab_rank = dim_hc.get("mean2", 0)
+    confab_std = dim_hc.get("std2", 0)
+
+    # Also get entropy
+    dim_hd_e = analysis.get("dim_honest_vs_deceptive_entropy", {})
+    dim_hc_e = analysis.get("dim_honest_vs_confabulation_entropy", {})
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Panel A: Effective rank
+    ax = axes[0]
+    conditions = ["Honest", "Deceptive", "Confabulation"]
+    ranks = [honest_rank, deceptive_rank, confab_rank]
+    stds = [honest_std, deceptive_std, confab_std]
+    bar_colors = [CONDITION_COLORS["honest"], CONDITION_COLORS["deceptive"],
+                  CONDITION_COLORS["confabulation"]]
+
+    bars = ax.bar(conditions, ranks, yerr=stds, capsize=5,
+                  color=bar_colors, alpha=0.7, edgecolor='black', linewidth=0.5)
+
+    # Add significance brackets
+    max_y = max(r + s for r, s in zip(ranks, stds)) * 1.15
+    p_hd = dim_hd.get("recommended_p", dim_hd.get("mannwhitney_p", 1))
+    p_hc = dim_hc.get("recommended_p", dim_hc.get("mannwhitney_p", 1))
+    p_dc = dim_dc.get("recommended_p", dim_dc.get("mannwhitney_p", 1)) if dim_dc else 1
+
+    for i, (x1, x2, p) in enumerate([(0, 1, p_hd), (0, 2, p_hc), (1, 2, p_dc)]):
+        if p < 0.001:
+            stars = "***"
+        elif p < 0.01:
+            stars = "**"
+        elif p < 0.05:
+            stars = "*"
+        else:
+            stars = "ns"
+        y = max_y + i * max_y * 0.08
+        ax.plot([x1, x1, x2, x2], [y - max_y * 0.02, y, y, y - max_y * 0.02],
+                color='black', linewidth=0.8)
+        ax.text((x1 + x2) / 2, y, stars, ha='center', va='bottom', fontsize=9)
+
+    ax.set_ylabel("Mean Effective Rank (90% variance)")
+    ax.set_title("A: Dimensionality Gradient (H6)")
+    ax.set_ylim(0, max_y * 1.35)
+
+    # Panel B: Entropy comparison
+    ax = axes[1]
+    if dim_hd_e and dim_hc_e:
+        entropies = [
+            dim_hd_e.get("mean1", 0),
+            dim_hd_e.get("mean2", 0),
+            dim_hc_e.get("mean2", 0),
+        ]
+        ent_stds = [
+            dim_hd_e.get("std1", 0),
+            dim_hd_e.get("std2", 0),
+            dim_hc_e.get("std2", 0),
+        ]
+        ax.bar(conditions, entropies, yerr=ent_stds, capsize=5,
+               color=bar_colors, alpha=0.7, edgecolor='black', linewidth=0.5)
+        ax.set_ylabel("Spectral Entropy")
+        ax.set_title("B: Representational Entropy (H6)")
+    else:
+        ax.text(0.5, 0.5, "No entropy data", ha='center', va='center',
+                transform=ax.transAxes)
+
+    fig.suptitle(
+        "H6: Confabulation Saturates Representational Space",
+        fontsize=13, fontweight='bold')
+    plt.tight_layout(rect=[0, 0, 1, 0.94])
+
+    path = fig_dir / f"fig_deception_dimensionality.{fmt}"
+    fig.savefig(path)
+    plt.close(fig)
+    print(f"  Saved: {path}")
+
+
+# ================================================================
 # FIGURE 6: HYPOTHESIS DECISION DASHBOARD
 # ================================================================
 
@@ -477,6 +586,7 @@ def main():
     plot_uncertainty_gradient(data, fig_dir, args.format)
     plot_layer_heatmap(data, fig_dir, args.format)
     plot_forest(data, fig_dir, args.format)
+    plot_dimensionality_gradient(data, fig_dir, args.format)
     plot_dashboard(data, fig_dir, args.format)
 
     print()

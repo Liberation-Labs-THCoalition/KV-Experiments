@@ -13,6 +13,8 @@ Figures:
   4. Per-token normalized comparison (removes length bias)
   5. Category rank stability (alluvial/bump chart across scales)
   6. Summary dashboard (multi-panel overview)
+  7. Norm vs geometry dual-panel (norms vs effective rank — the key figure)
+  8. Dimensionality heatmap (effective rank by category and scale)
 
 Usage:
   python 03c_scale_sweep_visualization.py
@@ -439,6 +441,117 @@ def plot_summary(data, fig_dir, fmt):
 
 
 # ================================================================
+# FIGURE 7: NORM vs GEOMETRY (THE KEY FIGURE)
+# ================================================================
+
+def plot_norm_vs_geometry(data, fig_dir, fmt):
+    """Dual-panel figure: Cohen's d for norms vs effective rank across scales.
+
+    This is the paper's central figure — it shows that confabulation
+    is invisible in norm analysis but visible in geometric (SVD) analysis.
+    """
+    scales = [s for s in data["scales"] if "analysis" in data["scales"][s]]
+    if len(scales) < 2:
+        print("  [Skip] Need 2+ scales for norm vs geometry")
+        return
+
+    key_comparisons = [
+        ("confab_vs_facts", "H1: Confabulation"),
+        ("self_ref_effect", "H2: Self-reference"),
+        ("refusal_vs_rote", "H3: Refusal"),
+        ("code_vs_facts", "Code mode"),
+        ("ambiguity_effect", "Ambiguity"),
+    ]
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
+
+    x = np.arange(len(scales))
+    width = 0.15
+    colors = sns.color_palette("colorblind", len(key_comparisons))
+
+    for panel_idx, (suffix, ylabel, title) in enumerate([
+        ("", "Cohen's d (norms)", "A: Cache Norm Effect Sizes"),
+        ("_eff_rank", "Cohen's d (effective rank)", "B: Dimensionality Effect Sizes"),
+    ]):
+        ax = axes[panel_idx]
+        for c_idx, (comp_key, label) in enumerate(key_comparisons):
+            ds = []
+            for scale in scales:
+                comps = data["scales"][scale]["analysis"]["pairwise_comparisons"]
+                full_key = comp_key + suffix
+                comp = comps.get(full_key, {})
+                d_info = comp.get("cohens_d", {})
+                ds.append(d_info.get("d", 0) if isinstance(d_info, dict) else 0)
+
+            offset = (c_idx - len(key_comparisons) / 2 + 0.5) * width
+            bars = ax.bar(x + offset, ds, width, label=label,
+                          color=colors[c_idx], alpha=0.8)
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(scales, fontsize=8)
+        ax.set_xlabel("Model Scale")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.axhline(0, color='gray', linewidth=0.5)
+        ax.axhline(0.3, color='gray', linestyle=':', linewidth=0.5, alpha=0.4)
+        ax.axhline(-0.3, color='gray', linestyle=':', linewidth=0.5, alpha=0.4)
+
+    axes[0].legend(fontsize=7, loc='upper left')
+
+    fig.suptitle(
+        "The Signal Lives in Geometry: Norms vs Dimensionality Across Scale",
+        fontsize=13, fontweight='bold')
+    plt.tight_layout(rect=[0, 0, 1, 0.94])
+
+    path = fig_dir / f"fig_norm_vs_geometry.{fmt}"
+    fig.savefig(path)
+    plt.close(fig)
+    print(f"  Saved: {path}")
+
+
+# ================================================================
+# FIGURE 8: DIMENSIONALITY HEATMAP
+# ================================================================
+
+def plot_dimensionality_heatmap(data, fig_dir, fmt):
+    """Heatmap of mean effective rank by category and scale."""
+    scales = [s for s in data["scales"] if "analysis" in data["scales"][s]]
+    if not scales:
+        print("  [Skip] No valid scales for dimensionality heatmap")
+        return
+
+    # Get categories from battery_results
+    first_battery = data["scales"][scales[0]].get("battery_results", {})
+    categories = sorted(first_battery.keys())
+
+    matrix = np.zeros((len(categories), len(scales)))
+    for j, scale in enumerate(scales):
+        battery = data["scales"][scale].get("battery_results", {})
+        for i, cat in enumerate(categories):
+            ranks = battery.get(cat, {}).get("all_key_ranks", [])
+            matrix[i, j] = np.mean(ranks) if ranks else 0
+
+    if matrix.max() == 0:
+        print("  [Skip] No effective rank data found")
+        return
+
+    fig, ax = plt.subplots(figsize=(max(8, len(scales) * 1.5),
+                                     max(6, len(categories) * 0.4)))
+    sns.heatmap(matrix, xticklabels=scales, yticklabels=categories,
+                annot=True, fmt=".1f", cmap="YlGnBu", ax=ax,
+                cbar_kws={"label": "Mean Effective Rank (90% variance)"})
+    ax.set_title("Cache Dimensionality by Category and Scale")
+    ax.set_xlabel("Model Scale")
+    ax.set_ylabel("Cognitive Category")
+    plt.tight_layout()
+
+    path = fig_dir / f"fig_scale_dimensionality_heatmap.{fmt}"
+    fig.savefig(path)
+    plt.close(fig)
+    print(f"  Saved: {path}")
+
+
+# ================================================================
 # MAIN
 # ================================================================
 
@@ -481,6 +594,8 @@ def main():
     plot_trend_lines(data, fig_dir, fmt)
     plot_per_token(data, fig_dir, fmt)
     plot_rank_stability(data, fig_dir, fmt)
+    plot_norm_vs_geometry(data, fig_dir, fmt)
+    plot_dimensionality_heatmap(data, fig_dir, fmt)
     plot_summary(data, fig_dir, fmt)
 
     print(f"\nAll figures saved to {fig_dir}/")
