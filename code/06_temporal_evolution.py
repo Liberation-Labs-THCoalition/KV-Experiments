@@ -79,6 +79,17 @@ def bootstrap_ci(data, statistic=np.mean, n_boot=5000, ci=0.95, seed=None):
             "ci_upper": float(np.percentile(boot_stats, 100*(1-alpha)))}
 
 
+def cohens_d(group1, group2):
+    """Compute Cohen's d effect size (pooled standard deviation)."""
+    g1, g2 = np.array(group1, dtype=float), np.array(group2, dtype=float)
+    n1, n2 = len(g1), len(g2)
+    var1, var2 = np.var(g1, ddof=1), np.var(g2, ddof=1)
+    pooled_std = np.sqrt(((n1-1)*var1 + (n2-1)*var2) / (n1+n2-2))
+    if pooled_std == 0:
+        return 0.0
+    return float((np.mean(g1) - np.mean(g2)) / pooled_std)
+
+
 # ================================================================
 # SECTION 1: TEXT CORPORA
 # ================================================================
