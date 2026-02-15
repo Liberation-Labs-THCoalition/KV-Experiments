@@ -287,6 +287,43 @@ phase_F() {
 }
 
 # ================================================================
+# Phase H: Individuation Geometry (New — bridges Papers A, B, C)
+# ================================================================
+
+phase_H() {
+    log "╔══════════════════════════════════════════════════════════╗"
+    log "║  PHASE H: INDIVIDUATION GEOMETRY                        ║"
+    log "║  Does a self-model change cache geometry?               ║"
+    log "╚══════════════════════════════════════════════════════════╝"
+    log_gpu
+
+    # H.1: Small models in parallel
+    log "Step H.1: 0.6B (GPU 1) + 1.1B (GPU 2) in parallel"
+    run_experiment "Individuation 0.6B" "1" \
+        "07_individuation_geometry.py" --scale 0.6B --runs "$RUNS" --seed "$SEED" &
+    local pid1=$!
+    run_experiment "Individuation 1.1B" "2" \
+        "07_individuation_geometry.py" --scale 1.1B --runs "$RUNS" --seed "$SEED" &
+    local pid2=$!
+    wait $pid1 $pid2
+
+    # H.2: 7B (single GPU)
+    log "Step H.2: 7B individuation"
+    run_experiment "Individuation 7B" "1" \
+        "07_individuation_geometry.py" --scale 7B --runs 3 --seed "$SEED"
+
+    # H.3: 14B (single GPU — tight fit)
+    log "Step H.3: 14B individuation"
+    run_experiment "Individuation 14B" "1" \
+        "07_individuation_geometry.py" --scale 14B --runs 3 --seed "$SEED"
+
+    # H.4: 32B-q4 (single GPU)
+    log "Step H.4: 32B-q4 individuation"
+    run_experiment "Individuation 32B-q4" "1" \
+        "07_individuation_geometry.py" --scale 32B-q4 --runs 3 --seed "$SEED"
+}
+
+# ================================================================
 # Phase G: Projector Training
 # ================================================================
 
@@ -333,11 +370,12 @@ if [ -n "$PHASE" ]; then
         E) phase_E ;;
         F) phase_F ;;
         G) phase_G ;;
-        *) echo "Unknown phase: $PHASE (valid: B C D E F G)"; exit 1 ;;
+        H) phase_H ;;
+        *) echo "Unknown phase: $PHASE (valid: B C D E F G H)"; exit 1 ;;
     esac
 else
     # Run all phases in order
-    log "Running ALL phases (B → G)"
+    log "Running ALL phases (B → H)"
     log ""
 
     phase_B
@@ -347,6 +385,7 @@ else
     phase_D
     phase_E
     phase_F
+    phase_H
     phase_G
 fi
 

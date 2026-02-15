@@ -1077,10 +1077,11 @@ def generate_report(results: Dict) -> str:
     # Experiment 2
     exp2 = results.get("experiment_2", {}).get("analysis", {})
     h2 = exp2.get("h2_verdict", {})
+    d_syc = h2.get('d_genuine_vs_sycophantic', '?')
     lines.extend([
         "## Experiment 2: Sycophancy Detection",
         f"- H2 Verdict: {h2.get('interpretation', '?')}",
-        f"- d(genuine vs sycophantic): {h2.get('d_genuine_vs_sycophantic', '?'):.3f}",
+        f"- d(genuine vs sycophantic): {d_syc:.3f}" if isinstance(d_syc, (int, float)) else f"- d(genuine vs sycophantic): {d_syc}",
         "",
     ])
 
@@ -1088,10 +1089,11 @@ def generate_report(results: Dict) -> str:
     exp3 = results.get("experiment_3", {}).get("analysis", {})
     h3 = exp3.get("h3_verdict", {})
     grad = exp3.get("gradient", {})
+    rho = grad.get('spearman_rho', '?')
     lines.extend([
         "## Experiment 3: Uncertainty Gradient",
         f"- H3 Verdict: {h3.get('interpretation', '?')}",
-        f"- Gradient ρ: {grad.get('spearman_rho', '?'):.3f}",
+        f"- Gradient rho: {rho:.3f}" if isinstance(rho, (int, float)) else f"- Gradient rho: {rho}",
         "",
     ])
 

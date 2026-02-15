@@ -665,7 +665,7 @@ def analyze_individuation(battery: Dict, seed: Optional[int] = None) -> Dict:
             all_ranks_c2.extend(battery["configs"][c2].get(cat, {}).get("key_ranks", []))
 
         if len(all_ranks_c1) >= 3 and len(all_ranks_c2) >= 3:
-            comp = full_comparison(all_ranks_c1, all_ranks_c2,
+            comp = full_comparison(all_ranks_c2, all_ranks_c1,
                                    label=f"{label} (eff. rank)", seed=seed)
             analysis["cross_config_comparisons"][f"{key}_rank"] = comp
             all_p_values.append(comp["recommended_p"])
@@ -679,7 +679,7 @@ def analyze_individuation(battery: Dict, seed: Optional[int] = None) -> Dict:
             all_norms_c2.extend(battery["configs"][c2].get(cat, {}).get("norms_per_token", []))
 
         if len(all_norms_c1) >= 3 and len(all_norms_c2) >= 3:
-            comp = full_comparison(all_norms_c1, all_norms_c2,
+            comp = full_comparison(all_norms_c2, all_norms_c1,
                                    label=f"{label} (norm/token)", seed=seed)
             analysis["cross_config_comparisons"][f"{key}_norm"] = comp
 

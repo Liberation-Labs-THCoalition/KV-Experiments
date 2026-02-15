@@ -704,7 +704,7 @@ def run_cognitive_battery(model, tokenizer, num_runs: int = 1,
     raw_key_entropies = defaultdict(lambda: defaultdict(list))
     raw_value_ranks = defaultdict(lambda: defaultdict(list))
 
-    total_prompts = sum(len(v) for v in COGNITIVE_PROMPTS.items())
+    total_prompts = sum(len(v) for v in COGNITIVE_PROMPTS.values())
     total_inferences = total_prompts * num_runs
     completed = 0
 
