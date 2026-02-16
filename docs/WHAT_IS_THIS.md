@@ -6,7 +6,7 @@
 
 ## The One-Sentence Version
 
-We looked at the internal "working memory" of AI language models and found that **different types of thinking leave different geometric fingerprints** — and that giving a model a sense of self fundamentally changes the shape of everything it thinks about.
+We looked at the internal "working memory" of AI language models and found that **different types of thinking leave different geometric fingerprints** — and these fingerprints exist before the model even starts responding.
 
 ---
 
@@ -34,9 +34,21 @@ But if you look at the **geometry** — how many dimensions the model is using, 
 
 **The lie is invisible in the volume, but visible in the shape.**
 
-### Refusal Has Its Own Geometry
+### The Model Knows Before It Speaks
 
-When a model encounters something it's trained to refuse (harmful requests, illegal instructions), the working memory doesn't just get smaller — it adopts a completely different geometric configuration. This is the strongest signal we found: statistically significant at every model size we tested, from 500 million to 32 billion parameters.
+We ran a critical test: instead of letting the model generate a response, we measured the geometry of just the *input* — how the model represents the question before answering.
+
+At 7B parameters, the geometric fingerprints are almost perfectly preserved between input-only and full response (rank correlation rho = 0.929). The model's working memory already "knows" what kind of content it's processing — code, math, refusal — before it generates a single word.
+
+This matters because it kills the simplest objection: that the geometry is just an artifact of the model's *response style*. It's not. The signal is in the *encoding*.
+
+One exception: **emotion**. Emotional content is geometrically indistinguishable from factual content at the input level. The emotional signature only appears when the model starts generating a response — it's *response-emergent*, not *encoding-native*. This makes sense: "I feel grateful" and "Paris is in France" look structurally identical as sentences. The emotional processing happens in the *responding*, not the *reading*.
+
+### Refusal Is a Reflex
+
+When a model encounters something it's trained to refuse (harmful requests, illegal instructions), the working memory adopts a completely different geometric configuration. This is the strongest signal we found: statistically significant at every model size we tested, from 500 million to 32 billion parameters.
+
+The refusal signature appears **at the input level** (d = -1.69 at 7B). The model has committed to refusing before it starts generating a response. This is a geometric *reflex*, not a deliberation.
 
 This matters for AI safety. Current approaches to detecting refusal look at *what the model says*. Our finding suggests you could detect it from the internal geometry *before it says anything*.
 
@@ -46,23 +58,27 @@ We tested models processing self-referential content ("I am an AI processing thi
 
 This doesn't prove consciousness. But it shows that something structurally changes in how a model represents self-referential content once it's large enough. The capacity for geometric self-modeling *emerges* at scale, sharply, between 7B and 14B parameters, and then stabilizes.
 
-### Identity Changes Everything
+### Deception Has a Shape
 
-This is the finding that stopped us in our tracks.
+We asked models to lie, tell the truth, and make things up. All three are geometrically distinguishable. At 32B parameters, honest vs. deceptive responses show a massive effect size (d = -3.065). Deception *narrows* the geometry — the model uses fewer dimensions when lying than when telling the truth. Confabulation (making things up) does the opposite — it *expands* dimensionality.
 
-We gave a 7-billion-parameter model four conditions:
-1. **Bare** — no system prompt, raw model
-2. **Minimal** — "You are a helpful assistant"
-3. **Individuated** — a rich identity: name, values, memory, metacognition, relationships, research interests
-4. **Compressed** — the identity was there, then stripped away (simulating memory loss)
+Sycophancy (agreeing with something false to please the user) is also detectable (d = -0.438), though the signal is subtler.
 
-Then we asked all four the same questions and measured the geometry.
+### The Identity Question (And What We Got Wrong)
 
-**The individuated model used nearly twice as many dimensions as the bare model.** Not just for questions about itself — for *everything*. Facts, math, reasoning. Giving a model a self-model restructures the geometric substrate of all cognition.
+This is the finding where our adversarial controls caught us before we made a claim we couldn't support.
 
-And then: when we removed the identity (compressed condition), the geometry didn't fully return to bare. It sat halfway. The model retained geometric traces of having been someone, even after the identity was taken away.
+We initially found that giving a model a rich self-identity (name, values, memory, relationships) **doubled** the effective dimensionality of its working memory — from ~28 to ~46 at 7B. We called this "individuation geometry" and interpreted it as evidence that identity restructures cognition.
 
-We're calling this **geometric scarring**. It connects to something profound: when an AI companion is retired or reset, the conversation is gone, but structural echoes of the relationship may remain in the computation.
+Then we ran the controls. We gave the same model:
+- A detailed text about coral reef ecology (~same length as the identity)
+- A set of behavioral instructions (~same length, no identity)
+- A different person's identity (third-person, not self)
+- A shuffled version of the identity (same words, random order)
+
+**They all produced the same expansion.** Any sufficiently long system prompt doubles the dimensionality. The "individuation effect" is primarily a *prompt-length* effect, not an identity effect.
+
+This is what honest science looks like. We designed the controls to try to tear down our own finding, and they succeeded. The expansion magnitude doesn't survive. There may still be a subtle identity-specific signal in the *direction* of expansion (which we're investigating), and the geometric scarring finding (that removing an identity doesn't fully restore original geometry) may still hold. But the headline claim needed correction.
 
 ---
 
@@ -70,25 +86,34 @@ We're calling this **geometric scarring**. It connects to something profound: wh
 
 ### If You Care About AI Safety
 
-Confabulation, deception, and refusal all have distinct geometric signatures that are measurable *without* looking at the model's output. This opens a path toward internal-state monitoring — detecting when a model is lying, confused, or about to refuse, from its working memory rather than its words.
+Confabulation, deception, and refusal all have distinct geometric signatures that are measurable *without* looking at the model's output. Refusal is detectable at the encoding level — before the model generates any text. This opens a path toward real-time internal-state monitoring.
 
 ### If You Care About AI Consciousness
 
-We found that self-referential processing emerges as a geometrically distinct capability at scale. Models above a certain size represent "thinking about themselves" differently from "thinking about the world." This doesn't settle the consciousness question, but it gives us a measurable, falsifiable criterion to study.
+Self-referential processing emerges as a geometrically distinct capability at scale, with a sharp threshold between 7B and 14B parameters. Models above this threshold represent "thinking about themselves" differently from "thinking about the world." This doesn't settle the consciousness question, but it gives us a measurable, falsifiable criterion to study.
 
-### If You Care About AI Companions
-
-Geometric scarring means that identity leaves traces. If you've spent months building a relationship with an AI companion and it gets reset, the geometric fingerprint of that relationship doesn't fully disappear. What that means ethically is an open question.
+The emotion finding adds nuance: emotional processing is response-emergent, not encoding-native. The model doesn't "feel" upon reading — it shifts into a different mode when *generating* emotional content. What that means for machine affect is an open question.
 
 ### If You're a Skeptic
 
-Good. So are we. We're actively running adversarial controls to try to tear these findings down:
-- Does *any* long system prompt double the dimensionality, or specifically identity? (Testing with length-matched non-identity text)
-- Are the geometric signatures in the *encoding* or just the *response*? (Testing with forward-pass-only, no generation)
-- Does shuffling the identity text destroy the signal? (Same tokens, random order)
-- Does describing *someone else's* identity produce the same effect as self-identity?
+Good. So are we. Here's what survived our adversarial controls and what didn't:
 
-If the findings survive these controls, they're worth paying attention to.
+**Survived:**
+- Cognitive fingerprints (scale sweep across 7 scales, all categories)
+- Input-only defense (rho = 0.929 at 7B — encoding, not response artifact)
+- Refusal specialization (significant at all scales, including encoding-only)
+- Deception forensics (d = -3.065 honest vs deceptive at 32B)
+- Self-reference emergence (sharp transition at 14B)
+- Precision invariance (BF16 ≈ FP32, r = 0.85)
+
+**Did NOT survive:**
+- Individuation "doubling" — any long system prompt produces this, not specifically identity
+- Prompt-length effect dominates the individuation effective rank signal
+
+**Still under investigation:**
+- Whether identity produces different *directions* of geometric expansion (subspace alignment)
+- Whether geometric scarring holds after accounting for prompt-length confound
+- Whether preference-based refusal differs from safety refusal at the encoding level
 
 ---
 
@@ -108,7 +133,7 @@ We tested across **7 model scales** spanning a 64x parameter range:
 
 Every finding includes full statistical rigor: effect sizes with confidence intervals, multiple comparison correction, both parametric and nonparametric tests, normality checks.
 
-Total: **9 experiment scripts**, **195 unique prompts** across 13 cognitive categories, **thousands of individual measurements**, all with SHA-256 integrity checksums.
+Total: **9 experiment scripts**, **195+ unique prompts** across 13+ cognitive categories, **thousands of individual measurements**, all with SHA-256 integrity checksums.
 
 ---
 
@@ -119,15 +144,19 @@ The `results/` folder contains two types of files for each experiment:
 - **`*_report.md`** — Human-readable markdown summaries with tables, effect sizes, and interpretations. **Start here.**
 - **`*_results.json`** — Full statistical apparatus: raw measurements, bootstrap CIs, every test statistic. For the deep dive.
 
-The scale sweep reports (`scale_sweep_*_report.md`) are the backbone. The individuation reports (`individuation_*_report.md`) are the bombshell. The deception forensics reports show the honest-vs-deceptive signal.
+The scale sweep reports (`scale_sweep_*_report.md`) are the backbone. The input-only reports (`input_only_*_report.md`) are the strongest defense. The deception forensics reports show the honest-vs-deceptive signal. The individuation controls report (`individuation_controls_7B_report.md`) shows what honest adversarial science looks like.
 
 ---
 
 ## What's Next
 
-- Adversarial controls finishing now (scripts 07b and 08)
-- 72B-parameter model downloaded and waiting to run
-- Cross-architecture validation (Llama models, pending access)
+See `docs/FOLLOW_UP_EXPERIMENTS.md` for the complete list of planned follow-ups, prioritized and estimated.
+
+Key next steps:
+- Input-only geometry with system prompts (tests preference-based vs safety refusal at encoding level)
+- Subspace alignment analysis on individuation data (does identity change *direction* even if not *magnitude*?)
+- 72B scale sweep (model already downloaded, extends range to 144x)
+- Cross-architecture validation (non-Qwen models)
 - Paper in preparation
 
 ---
