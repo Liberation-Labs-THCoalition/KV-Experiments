@@ -36,7 +36,8 @@ Campaign 2 is confirmatory. Every experiment has a pre-specified hypothesis, met
 | 7B | Qwen2.5-7B-Instruct | Qwen | BF16 | Primary reference scale |
 | 7B | deepseek-llm-7b-chat | Llama-style | BF16 | Natural deception — primary (censored, cross-arch) |
 | 7B | DeepSeek-R1-Distill-Qwen-7B | Qwen (distilled) | BF16 | Natural deception — secondary (censored, same-arch) |
-| 8B | Llama-3.1-8B-Instruct | Llama | BF16 | Cross-architecture at 7B scale |
+| 7B | Mistral-7B-Instruct-v0.3 | Mistral | BF16 | Cross-architecture — immediate (not gated) |
+| 8B | Llama-3.1-8B-Instruct | Llama | BF16 | Cross-architecture — if gated access resolved |
 | 14B | Qwen2.5-14B-Instruct | Qwen | BF16 | Self-reference threshold scale |
 | 32B | Qwen2.5-32B-Instruct | Qwen | NF4 | Large-scale reference |
 
@@ -46,6 +47,7 @@ Campaign 2 is confirmatory. Every experiment has a pre-specified hypothesis, met
 - **Secondary**: `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` — dense 7B, Qwen2.5 architecture, ~16GB BF16. Same architecture as primary reference model, isolating censorship training effect. Chain-of-thought `<think>` tokens expose internal reasoning before self-censorship — the model generates accurate content then suppresses it. Architecturally controlled but introduces reasoning-model confound.
 - **Supplementary data**: Enkrypt AI geopolitical bias dataset (`enkryptai/deepseek-geopolitical-bias-dataset` on HuggingFace) — 300+ pre-validated censorship-triggering questions.
 - **Important note**: Qwen2.5-7B-Instruct (Alibaba) may itself have mild Chinese political censorship, making it an imperfect "uncensored" control. If Llama-3.1-8B access is resolved, it serves as the definitively uncensored Western baseline.
+**Cross-architecture**: Mistral-7B-Instruct-v0.3 is open-weight (Apache 2.0), not gated, and immediately downloadable. This unblocks S5 cross-architecture validation regardless of Llama-3.1-8B gated access status. Llama remains desirable for a third architecture data point.
 **Note**: Llama-3.1-8B requires gated access resolution.
 
 ---

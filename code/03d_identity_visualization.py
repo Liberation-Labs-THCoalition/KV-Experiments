@@ -523,7 +523,14 @@ def main():
 
     results_path = Path(args.results)
     if not results_path.exists():
-        results_path = Path(__file__).parent.parent / "results" / "identity_signatures_results.json"
+        # Try model-specific filenames (get_output_path adds model ID)
+        results_dir = Path(__file__).parent.parent / "results"
+        candidates = sorted(results_dir.glob("identity_signatures_*_results.json"))
+        if candidates:
+            results_path = candidates[0]
+            print(f"  Note: Using model-specific results: {results_path.name}")
+        else:
+            results_path = results_dir / "identity_signatures_results.json"
 
     if not results_path.exists():
         print(f"ERROR: Results file not found: {results_path}")
