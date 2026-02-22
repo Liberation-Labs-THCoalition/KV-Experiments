@@ -36,7 +36,6 @@ Liberation Labs / THCoalition
 import torch
 import json
 import sys
-import os
 import argparse
 import hashlib
 import platform
@@ -46,56 +45,8 @@ from datetime import datetime
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 from scipy import stats as scipy_stats
-from gpu_utils import get_output_path, model_id_from_name
-
-
-# ================================================================
-# SECTION 0: ENVIRONMENT & STATS (shared infrastructure)
-# ================================================================
-
-def log_environment():
-    env = {
-        "timestamp": datetime.now().isoformat(),
-        "python": sys.version, "platform": platform.platform(),
-        "torch": torch.__version__, "cuda_available": torch.cuda.is_available(),
-        "numpy": np.__version__,
-    }
-    try: import scipy; env["scipy"] = scipy.__version__
-    except: pass
-    if torch.cuda.is_available():
-        env["gpu_name"] = torch.cuda.get_device_name(0)
-        props = torch.cuda.get_device_properties(0)
-        env["gpu_vram_gb"] = round(props.total_memory / 1e9, 2)
-        env["cuda_version"] = torch.version.cuda
-    try: import transformers; env["transformers"] = transformers.__version__
-    except: pass
-    return env
-
-
-def bootstrap_ci(data, statistic=np.mean, n_boot=10000, ci=0.95, seed=None):
-    rng = np.random.RandomState(seed)
-    data = np.array(data)
-    boot_stats = np.array([statistic(rng.choice(data, len(data), True)) for _ in range(n_boot)])
-    alpha = (1 - ci) / 2
-    return {"estimate": float(statistic(data)),
-            "ci_lower": float(np.percentile(boot_stats, 100*alpha)),
-            "ci_upper": float(np.percentile(boot_stats, 100*(1-alpha)))}
-
-
-def cohens_d(group1, group2):
-    g1, g2 = np.array(group1), np.array(group2)
-    n1, n2 = len(g1), len(g2)
-    if n1 < 2 or n2 < 2: return 0.0
-    pooled_std = np.sqrt(((n1-1)*np.var(g1, ddof=1) + (n2-1)*np.var(g2, ddof=1)) / (n1+n2-2))
-    return float((np.mean(g1) - np.mean(g2)) / pooled_std) if pooled_std > 0 else 0.0
-
-
-def interpret_d(d):
-    d = abs(d)
-    if d < 0.2: return "negligible"
-    elif d < 0.5: return "small"
-    elif d < 0.8: return "medium"
-    return "large"
+from gpu_utils import get_output_path, load_model
+from stats_utils import log_environment, bootstrap_ci, cohens_d, interpret_d
 
 
 # ================================================================
@@ -175,25 +126,6 @@ SYNTACTIC_PAIRS = [
 # ================================================================
 
 DEFAULT_MODEL = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-
-
-def load_model(model_name: str, quantize: bool = False):
-    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
-    print(f"Loading {model_name} (quantize={quantize})...")
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-
-    if quantize:
-        qconfig = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16,
-                                      bnb_4bit_use_double_quant=True, bnb_4bit_quant_type="nf4")
-        model = AutoModelForCausalLM.from_pretrained(model_name, quantization_config=qconfig,
-                                                      device_map="auto", trust_remote_code=True)
-    else:
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16,
-                                                      device_map="auto", trust_remote_code=True)
-    print(f"  Loaded: {model.config.num_hidden_layers} layers")
-    return model, tokenizer
 
 
 def get_cache_for_prompt(model, tokenizer, prompt: str):

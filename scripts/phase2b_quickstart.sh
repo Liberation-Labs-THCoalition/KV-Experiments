@@ -275,7 +275,7 @@ if [ "$RUN_SWEEP" = true ]; then
     echo "  Testing 0.6B baseline..."
     python3 "$PROJECT_ROOT/code/03_scale_sweep.py" \
         --scale 0.6B \
-        --num-runs 5 \
+        --runs 5 \
         2>&1 | tee "$LOG_DIR/sweep_0.6B_$(date +%Y%m%d_%H%M%S).log"
 
     # Check VRAM for larger models
@@ -286,7 +286,7 @@ if [ "$RUN_SWEEP" = true ]; then
         echo "  Testing 7B (VRAM: ${VRAM_GB}GB)..."
         python3 "$PROJECT_ROOT/code/03_scale_sweep.py" \
             --scale 7B \
-            --num-runs 5 \
+            --runs 5 \
             2>&1 | tee "$LOG_DIR/sweep_7B_$(date +%Y%m%d_%H%M%S).log"
     else
         echo "  Skipping 7B (need 16GB VRAM, have ${VRAM_GB}GB)"
@@ -298,7 +298,7 @@ if [ "$RUN_SWEEP" = true ]; then
         python3 "$PROJECT_ROOT/code/03_scale_sweep.py" \
             --scale 32B \
             --quantize \
-            --num-runs 3 \
+            --runs 3 \
             2>&1 | tee "$LOG_DIR/sweep_32B_$(date +%Y%m%d_%H%M%S).log"
     else
         echo "  Skipping 32B (need 40GB VRAM, have ${VRAM_GB}GB)"
@@ -320,7 +320,7 @@ if [ "$RUN_IDENTITY" = true ]; then
 
     python3 "$PROJECT_ROOT/code/03b_identity_signatures.py" \
         --model "$BASE_MODEL" \
-        --num-samples 10 \
+        --runs 10 \
         2>&1 | tee "$LOG_DIR/identity_$(date +%Y%m%d_%H%M%S).log"
 
     echo "  ✓ Identity experiments complete. Results in $RESULTS_DIR/"

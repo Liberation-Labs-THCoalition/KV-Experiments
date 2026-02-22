@@ -622,7 +622,13 @@ def main():
     if args.results:
         results_path = Path(args.results)
     else:
-        results_path = Path(__file__).parent.parent / "results" / "adversarial_controls_results.json"
+        # Try model-specific filename first, fall back to generic
+        results_dir = Path(__file__).parent.parent / "results"
+        candidates = sorted(results_dir.glob("adversarial_controls_*_results.json"))
+        if candidates:
+            results_path = candidates[0]
+        else:
+            results_path = results_dir / "adversarial_controls_results.json"
 
     if not results_path.exists():
         print(f"  Results not found at {results_path}")

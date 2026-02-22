@@ -48,7 +48,6 @@ Liberation Labs / THCoalition
 import torch
 import json
 import sys
-import os
 import argparse
 import hashlib
 import platform
@@ -62,35 +61,10 @@ from gpu_utils import (
     get_output_path, model_id_from_name, load_model,
     compute_cache_dimensionality,
 )
-
-
-# ================================================================
-# SECTION 0: ENVIRONMENT LOGGING
-# ================================================================
-
-def log_environment():
-    env = {
-        "timestamp": datetime.now().isoformat(),
-        "python": sys.version,
-        "platform": platform.platform(),
-        "torch": torch.__version__,
-        "cuda_available": torch.cuda.is_available(),
-        "numpy": np.__version__,
-    }
-    try:
-        import scipy; env["scipy"] = scipy.__version__
-    except Exception:
-        pass
-    if torch.cuda.is_available():
-        env["gpu_name"] = torch.cuda.get_device_name(0)
-        props = torch.cuda.get_device_properties(0)
-        env["gpu_vram_gb"] = round(props.total_memory / 1e9, 2)
-        env["cuda_version"] = torch.version.cuda
-    try:
-        import transformers; env["transformers"] = transformers.__version__
-    except Exception:
-        pass
-    return env
+from stats_utils import (
+    log_environment, bootstrap_ci, welch_t, mann_whitney, shapiro_wilk,
+    cohens_d, cohens_d_ci, interpret_d, holm_bonferroni, full_comparison
+)
 
 
 def print_banner(env, scale_name):
@@ -105,117 +79,6 @@ def print_banner(env, scale_name):
     print(f"  Time: {env['timestamp']}")
     print("=" * 70)
     print()
-
-
-# ================================================================
-# SECTION 1: STATISTICAL INFRASTRUCTURE
-# ================================================================
-
-def bootstrap_ci(data, statistic=np.mean, n_boot=10000, ci=0.95, seed=None):
-    rng = np.random.RandomState(seed)
-    data = np.array(data)
-    boot_stats = np.array([
-        statistic(rng.choice(data, size=len(data), replace=True))
-        for _ in range(n_boot)
-    ])
-    alpha = (1 - ci) / 2
-    return {
-        "estimate": float(statistic(data)),
-        "ci_lower": float(np.percentile(boot_stats, 100 * alpha)),
-        "ci_upper": float(np.percentile(boot_stats, 100 * (1 - alpha))),
-        "se": float(np.std(boot_stats)),
-    }
-
-
-def welch_t(group1, group2):
-    t, p = scipy_stats.ttest_ind(group1, group2, equal_var=False)
-    return {"t_statistic": float(t), "p_value": float(p)}
-
-
-def mann_whitney(group1, group2):
-    try:
-        u, p = scipy_stats.mannwhitneyu(group1, group2, alternative='two-sided')
-        return {"u_statistic": float(u), "p_value": float(p)}
-    except ValueError:
-        return {"u_statistic": 0.0, "p_value": 1.0}
-
-
-def shapiro_wilk(data):
-    if len(data) < 3:
-        return {"w_statistic": 0.0, "p_value": 1.0, "is_normal": True}
-    w, p = scipy_stats.shapiro(data)
-    return {"w_statistic": float(w), "p_value": float(p), "is_normal": p > 0.05}
-
-
-def cohens_d(group1, group2):
-    g1, g2 = np.array(group1), np.array(group2)
-    n1, n2 = len(g1), len(g2)
-    if n1 < 2 or n2 < 2:
-        return 0.0
-    var1, var2 = np.var(g1, ddof=1), np.var(g2, ddof=1)
-    pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
-    if pooled_std == 0:
-        return 0.0
-    return float((np.mean(g1) - np.mean(g2)) / pooled_std)
-
-
-def cohens_d_ci(group1, group2, n_boot=5000, ci=0.95, seed=None):
-    rng = np.random.RandomState(seed)
-    g1, g2 = np.array(group1), np.array(group2)
-    boot_ds = [cohens_d(rng.choice(g1, len(g1), True), rng.choice(g2, len(g2), True))
-               for _ in range(n_boot)]
-    alpha = (1 - ci) / 2
-    return {
-        "d": cohens_d(g1, g2),
-        "ci_lower": float(np.percentile(boot_ds, 100 * alpha)),
-        "ci_upper": float(np.percentile(boot_ds, 100 * (1 - alpha))),
-    }
-
-
-def interpret_d(d):
-    d = abs(d)
-    if d < 0.2: return "negligible"
-    elif d < 0.5: return "small"
-    elif d < 0.8: return "medium"
-    return "large"
-
-
-def holm_bonferroni(p_values, alpha=0.05):
-    n = len(p_values)
-    indexed = sorted(enumerate(p_values), key=lambda x: x[1])
-    results = [None] * n
-    for rank, (orig_idx, p) in enumerate(indexed):
-        corrected = min(p * (n - rank), 1.0)
-        results[orig_idx] = {
-            "original_p": p, "corrected_p": corrected,
-            "reject_null": corrected < alpha, "rank": rank + 1,
-        }
-    return results
-
-
-def full_comparison(group1, group2, label="", seed=None):
-    g1, g2 = np.array(group1), np.array(group2)
-    result = {
-        "label": label,
-        "n1": len(g1), "n2": len(g2),
-        "mean1": float(np.mean(g1)), "mean2": float(np.mean(g2)),
-        "std1": float(np.std(g1, ddof=1)) if len(g1) > 1 else 0,
-        "std2": float(np.std(g2, ddof=1)) if len(g2) > 1 else 0,
-    }
-    result["normality_g1"] = shapiro_wilk(g1)
-    result["normality_g2"] = shapiro_wilk(g2)
-    both_normal = result["normality_g1"]["is_normal"] and result["normality_g2"]["is_normal"]
-    result["welch_t"] = welch_t(g1, g2)
-    result["mann_whitney"] = mann_whitney(g1, g2)
-    result["cohens_d"] = cohens_d_ci(g1, g2, seed=seed)
-    result["cohens_d"]["interpretation"] = interpret_d(result["cohens_d"]["d"])
-    if both_normal:
-        result["recommended_test"] = "welch_t"
-        result["recommended_p"] = result["welch_t"]["p_value"]
-    else:
-        result["recommended_test"] = "mann_whitney"
-        result["recommended_p"] = result["mann_whitney"]["p_value"]
-    return result
 
 
 # ================================================================

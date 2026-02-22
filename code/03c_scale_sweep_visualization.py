@@ -570,8 +570,14 @@ def main():
 
     results_path = Path(args.results)
     if not results_path.exists():
-        # Try relative to script
-        results_path = Path(__file__).parent.parent / "results" / "scale_sweep_results.json"
+        # Try model-specific filenames (get_output_path adds model ID)
+        results_dir = Path(__file__).parent.parent / "results"
+        candidates = sorted(results_dir.glob("scale_sweep_*_results.json"))
+        if candidates:
+            results_path = candidates[0]
+            print(f"  Note: Using model-specific results: {results_path.name}")
+        else:
+            results_path = results_dir / "scale_sweep_results.json"
 
     if not results_path.exists():
         print(f"ERROR: Results file not found: {results_path}")
