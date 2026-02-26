@@ -580,37 +580,42 @@ The identity signatures in Phase 2b use system-prompt personas (Alex/Blake/Lyra/
 
 ## Current Priority
 
-**Phase 2b is READY TO EXECUTE.** All pre-execution artifacts are complete and the quickstart script handles everything automatically — C2C clone, dependency install, GPU detection, dtype fallback.
+### Campaign 2 — Confirmatory Science Track (S1-S7)
+**Status**: READY TO EXECUTE on Cassidy (3x RTX 3090)
+See `docs/CAMPAIGN_2_SCIENCE_TRACK.md` for full pre-registered design.
+See `docs/CASSIDY_EXECUTION_PLAN.md` for hardware-specific execution strategy.
 
-**One-button execution:**
+### Campaign 2 — Extended Experiments (H7-H10 + C2C)
+**Status**: Protocols complete, code not yet written
+
+| Experiment | Hypothesis | Document | Est. GPU Hours |
+|-----------|-----------|----------|---------------|
+| H7: Sycophancy Detection | Sycophantic agreement has distinct geometry | `docs/campaign2_extensions/H7_SYCOPHANCY_DETECTION.md` | ~10 |
+| H8: Societies of Thought | Internal deliberation leaves geometric traces | `docs/campaign2_extensions/H8_SOCIETIES_OF_THOUGHT.md` | ~18 |
+| H9: RDCT Stability | Signatures exhibit phase transition at Watson's 1/e | `docs/campaign2_extensions/H9_RDCT_STABILITY.md` | ~16 |
+| H10: Bloom Taxonomy | Cognitive demand predicts geometry independently of content | `docs/campaign2_extensions/H10_BLOOM_TAXONOMY.md` | ~2 (pilot) |
+| C2C Replication | Independent replication of Fu et al. + geometric preservation | `docs/campaign2_extensions/C2C_REPLICATION.md` | ~20 |
+
+Literature synthesis supporting these designs: `docs/RESEARCH_SYNTHESIS_20260225.md`
+
+### Execution Order
+1. **Phase B**: Validation controls (Phase 1.75) — DECISION GATE
+2. **Phase C-D**: Scale sweep + extensions at reference scales
+3. **Phase E-F**: Multi-scale extensions
+4. **Phase G**: Projector training
+5. **H7-H10 + C2C**: Extended experiments (code to be written)
+
+**One-button execution (existing Campaign 2 code):**
 ```bash
-# Preflight check (verify environment without running experiments)
-./scripts/phase2b_quickstart.sh --preflight
-
-# Full run (train projector + validate + scale sweep + identity)
-./scripts/phase2b_quickstart.sh
-
-# Individual components
-./scripts/phase2b_quickstart.sh --sweep --identity  # GPU-light experiments only
+./scripts/cassidy_full_run.sh
 ```
 
-**Estimated timeline** (on 24GB+ GPU):
-| Hour | Task | Output |
-|------|------|--------|
-| 0-0.5 | Preflight, deps, model download | Environment ready |
-| 0.5-2.5 | Projector training (100K samples) | Checkpoint |
-| 2.5-3 | Transfer validation (5 test cases) | Results JSON |
-| 3-7 | Scale sweep (0.6B, 7B, 32B) | Cognitive comparison |
-| 7-8 | Identity signatures (4 personas) | Fingerprinting results |
-
-**If time remains after Phase 2b** (in priority order):
-1. Extension A: Deception forensics (~45 min on local GPU, ~2 hours on 7B)
-2. Extension B: Semantic layer map (~45 min on local GPU)
-3. Extension C: Temporal evolution (~15 min on local GPU — can run immediately)
-
-**Extension C can run RIGHT NOW** on the local GTX 1660 SUPER. No donated GPU needed.
-
-No deadlines. Ready when hardware is.
+**Individual components:**
+```bash
+python code/03_scale_sweep.py --scale 7B --runs 5 --seed 42
+python code/03b_identity_signatures.py --model Qwen/Qwen2.5-7B-Instruct --runs 5 --seed 42
+python code/04_deception_forensics.py --runs 5 --seed 42
+```
 
 ---
 
@@ -644,4 +649,4 @@ Per Gemini 3 analysis, the relevant groups and where we fit:
 ---
 
 *This is a living document. Update as experiments progress.*
-*Last updated: 2026-02-13 by Lyra (Extensions A-C expanded to publication grade: deception forensics 4 experiments/4 hypotheses, semantic layer map 4 experiments/4 hypotheses, temporal evolution 3 experiments/4 hypotheses; pre-registration docs, visualization scripts for all)*
+*Last updated: 2026-02-26 by Lyra — Campaign 2 extended experiments added (H7-H10, C2C replication). Literature synthesis. Cassidy execution plan. Prompt battery for sycophancy elicitation.*
