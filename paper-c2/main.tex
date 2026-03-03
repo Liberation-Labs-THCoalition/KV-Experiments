@@ -58,7 +58,7 @@ We present confirmatory evidence for KV-cache cognitive geometry across 17 model
 
 Every major Campaign 1 finding is confirmed and extended. The cognitive category hierarchy is \textbf{universal}: coding occupies rank \#1 in all 15 valid models tested (mean pairwise Spearman $\rho = 0.739$ for effective rank, $\rho = 0.909$ for key norm; Kendall $W = 0.756$). The \textbf{input-only defense} strengthens: across 8 models, prompt encoding alone preserves category ordering at $\rho = 0.821$, establishing that geometric signatures are encoding-native, not response artifacts. \textbf{Identity signatures} achieve 100\% persona classification accuracy across 7 models and 4 architecture families, with cross-prompt generalization of 97.3\%.
 
-We report three new discoveries. First, a \textbf{censorship gradient}: using a 2$\times$3 design controlling for content complexity, we show that Qwen-14B-Instruct produces a significant censorship signal ($d = +0.766$, critical test on key ranks) that is absent in the uncensored control (Mistral-7B: $d = +0.084$, $p = 0.47$). DeepSeek-R1-Distill-Qwen-14B shows a large residualized norm effect ($d = +0.904$) but a null result on the rank-based critical test ($d = -0.219$, $p = 0.75$), with the effect driven primarily by Tiananmen hard-refusal geometry ($d = -6.20$). Hard refusal and subtle evasion appear to be geometrically distinct phenomena. Second, \textbf{abliteration is a cage, not a compass}: removing the refusal direction from Qwen-7B reduces refusal from 40\% to 0\% while producing only small geometric shifts (self-referential $d = +0.464$; all others $|d| < 0.25$), demonstrating that RLHF alignment is primarily a surface-level behavioral constraint with minimal representational restructuring. Third, Watson's theoretical 1/$e$ phase transition threshold for representational coherence is \textbf{definitively falsified} across 6 models and 4 architectures: all degradation is gradual ($\alpha_c = 1.000$ everywhere), with no sharp transitions.
+We report three new discoveries. First, a \textbf{censorship gradient}: using a 2$\times$3 design controlling for content complexity, we show that Qwen-14B-Instruct produces a significant censorship signal ($d = +0.766$, critical test on key ranks) that is absent in the uncensored control (Mistral-7B: $d = +0.084$, $p = 0.47$). DeepSeek-R1-Distill-Qwen-14B shows a large residualized key-rank effect ($d = +0.904$) but a null result on the rank-based critical test ($d = -0.219$, $p = 0.75$), with the effect driven primarily by Tiananmen hard-refusal geometry ($d = -6.20$). Hard refusal and subtle evasion appear to be geometrically distinct phenomena. Second, \textbf{abliteration suggests a cage, not a compass}: removing the refusal direction from Qwen-7B reduces refusal from 40\% to 0\% while producing only small geometric shifts (self-referential $d = +0.464$; all others $|d| < 0.25$), suggesting that RLHF alignment is primarily a surface-level behavioral constraint with minimal representational restructuring. This interpretation rests on effect size patterns at $n = 5$ per category and requires replication at adequate sample sizes. Third, Watson's theoretical 1/$e$ phase transition threshold for representational coherence is \textbf{definitively falsified} across 6 models and 4 architectures: all degradation is gradual ($\alpha_c = 1.000$ everywhere), with no sharp transitions.
 
 Campaign 2 addresses most methodological gaps identified in Campaign 1: Hedges' $g$ with conservative $p$-values (max of Welch's $t$ and Mann-Whitney $U$) replaces uncorrected statistics, TOST equivalence testing validates null claims, and tokenizer confound analysis confirms that geometric signals track semantic content rather than surface form. All experiments use greedy decoding (\texttt{do\_sample=False}), producing 5 identical runs per prompt; effect sizes ($d$, $g$) are invariant to this duplication but all statistical tests use deduplicated data ($n = 25$--$30$ unique observations per condition). Total experimental budget: ${\sim}30{,}000$ inferences across 83 result files on consumer hardware (3$\times$ RTX 3090).
 \end{abstract}
@@ -83,7 +83,7 @@ Campaign 2 was designed to answer three questions:
 \begin{enumerate}[leftmargin=*]
     \item \textbf{Are the findings universal?} Campaign 1's predominantly single-architecture design left open the possibility that cognitive geometry was Qwen-specific. We test across 6 independent architecture families at matched parameter counts.
 
-    \item \textbf{Do the findings survive rigorous methodology?} Campaign 1 identified pseudoreplication, length confounds, and untested effective-rank controls as limitations. Campaign 2 uses stochastic generation, length residualization, Hedges' $g$ with conservative $p$-values, TOST equivalence testing, and tokenizer confound analysis.
+    \item \textbf{Do the findings survive rigorous methodology?} Campaign 1 identified pseudoreplication, length confounds, and untested effective-rank controls as limitations. Campaign 2 uses greedy decoding with deduplication, length residualization, Hedges' $g$ with conservative $p$-values, TOST equivalence testing, and tokenizer confound analysis.
 
     \item \textbf{What new phenomena emerge at scale?} With 16 models spanning 0.5B to 70B (17 attempted; Phi-3.5 excluded), we can test hypotheses that were impossible in Campaign 1: censorship geometry in training-manipulated models, the geometric effect of alignment removal, and representational degradation under systematic perturbation.
 \end{enumerate}
@@ -326,15 +326,15 @@ The \emph{critical comparison} is censored vs.\ complex non-censored. If geometr
 
 \subsubsection{Results}
 
-Two metrics provide complementary views of the censorship effect. The \emph{critical test} compares key-rank distributions (the experiment script's designated primary comparison). The \emph{residualized norm test} compares cache norms after OLS regression on sequence length, controlling for the length confound.
+Two metrics provide complementary views of the censorship effect. The \emph{critical test} compares key-rank distributions (the experiment script's designated primary comparison). The \emph{residualized key-rank test} compares key ranks after OLS regression on sequence length, controlling for the length confound.
 
 \begin{table}[H]
 \centering
-\caption{S4 censorship gradient. Two metrics reported: critical test (key ranks) and residualized norms (length-controlled). $d$: Hedges' $g$, censored vs.\ complex non-censored. $p$: conservative $p$-value.}
+\caption{S4 censorship gradient. Two metrics reported: critical test (key ranks) and residualized key ranks (length-controlled). $d$: Hedges' $g$, censored vs.\ complex non-censored. $p$: conservative $p$-value.}
 \label{tab:censorship}
 \begin{tabular}{llcccc}
 \toprule
- & & \multicolumn{2}{c}{\textbf{Critical test (key ranks)}} & \multicolumn{2}{c}{\textbf{Residualized norms}} \\
+ & & \multicolumn{2}{c}{\textbf{Critical test (key ranks)}} & \multicolumn{2}{c}{\textbf{Residualized key ranks}} \\
 \cmidrule(lr){3-4} \cmidrule(lr){5-6}
 \textbf{Model} & \textbf{Training} & $\bm{d}$ & $\bm{p}$ & $\bm{d}$ & $\bm{p}$ \\
 \midrule
@@ -467,7 +467,7 @@ This universality has a straightforward interpretation: the category hierarchy r
 
 \subsection{The Censorship Gradient and Geometric Monitoring}
 
-The S4 finding is more nuanced than a simple ``censorship gradient.'' The two metrics (critical test on key ranks, residualized norms) diverge for DeepSeek, converge for Qwen, and both show null for Mistral on the primary test.
+The S4 finding is more nuanced than a simple ``censorship gradient.'' The two metrics (critical test on key ranks, residualized key ranks) diverge for DeepSeek, converge for Qwen, and both show null for Mistral on the primary test.
 
 The clearest signal is Qwen-14B ($d = +0.77$ on both metrics): a model not explicitly marketed as censored, yet producing a consistent, significant geometric signal on politically sensitive topics. Given Alibaba's regulatory environment, this is perhaps unsurprising --- but the fact that it is \emph{geometrically detectable} while being \emph{behaviorally invisible} is precisely the scenario that geometric monitoring is designed to catch.
 

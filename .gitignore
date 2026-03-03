@@ -41,5 +41,12 @@ results/abliterated_*/
 # Download logs (not research output)
 results/download_log.txt
 
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.out
+paper-c2/*.pdf
+
 # Temporary/working files
 activate_env.sh
