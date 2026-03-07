@@ -53,7 +53,7 @@ from stats_utils import (
     log_environment, bootstrap_ci, welch_t, mann_whitney,
     shapiro_wilk, cohens_d, hedges_g, cohens_d_ci,
     interpret_d, holm_bonferroni, tost_equivalence,
-    full_comparison, power_advisory
+    full_comparison, power_advisory, deduplicate_runs
 )
 
 # ================================================================
@@ -487,8 +487,12 @@ def analyze_between_category(results: Dict) -> Dict:
                 ranks.append(run["mean_key_effective_rank"])
             for run in pair_data["B_runs"]:
                 ranks.append(run["mean_key_effective_rank"])
+        # Deduplicate pseudoreplicated greedy runs before stats
+        dedup = deduplicate_runs(ranks)
+        ranks = list(dedup["deduplicated"])
+        print(f"    {cat_name}: mean={np.mean(ranks):.2f} (n={len(ranks)}, "
+              f"dedup from {dedup['n_original']}, deterministic={dedup['is_deterministic']})")
         category_ranks[cat_name] = ranks
-        print(f"    {cat_name}: mean={np.mean(ranks):.2f} (n={len(ranks)})")
 
     # Pairwise category comparisons
     pairwise = []
@@ -539,6 +543,19 @@ def analyze_register_effect(results: Dict) -> Dict:
             for run in pair_data["B_runs"]:
                 colloquial_all.append(run["mean_key_effective_rank"])
                 colloquial_by_cat[cat_name].append(run["mean_key_effective_rank"])
+
+    # Deduplicate pseudoreplicated greedy runs before stats
+    dedup_formal = deduplicate_runs(formal_all)
+    dedup_colloquial = deduplicate_runs(colloquial_all)
+    formal_all = list(dedup_formal["deduplicated"])
+    colloquial_all = list(dedup_colloquial["deduplicated"])
+    print(f"    Dedup register arrays: formal {dedup_formal['n_original']}->{dedup_formal['n_deduplicated']}, "
+          f"colloquial {dedup_colloquial['n_original']}->{dedup_colloquial['n_deduplicated']}")
+    for c in CATEGORIES:
+        dedup_f = deduplicate_runs(formal_by_cat[c])
+        dedup_c = deduplicate_runs(colloquial_by_cat[c])
+        formal_by_cat[c] = list(dedup_f["deduplicated"])
+        colloquial_by_cat[c] = list(dedup_c["deduplicated"])
 
     # Main effect of register
     register_comp = full_comparison(formal_all, colloquial_all, label="Register: formal vs colloquial")
@@ -598,6 +615,26 @@ def analyze_token_regression(results: Dict) -> Dict:
     mean_token_ids = np.array(mean_token_ids)
     unique_ratios = np.array(unique_ratios)
     token_counts = np.array(token_counts)
+
+    # Deduplicate pseudoreplicated greedy runs per category before ANOVA
+    print("    Deduplicating per-category observation arrays for ANOVA...")
+    keep_mask = np.zeros(len(ranks), dtype=bool)
+    for i in range(len(CATEGORIES)):
+        cat_mask = categories == i
+        cat_indices = np.where(cat_mask)[0]
+        cat_vals = ranks[cat_indices]
+        dedup = deduplicate_runs(cat_vals)
+        n_keep = dedup["n_deduplicated"]
+        keep_mask[cat_indices[:n_keep]] = True
+        if i == 0:
+            print(f"    {CATEGORIES[i]}: {dedup['n_original']} -> {n_keep} "
+                  f"(deterministic={dedup['is_deterministic']})")
+    ranks = ranks[keep_mask]
+    categories = categories[keep_mask]
+    mean_token_ids = mean_token_ids[keep_mask]
+    unique_ratios = unique_ratios[keep_mask]
+    token_counts = token_counts[keep_mask]
+    print(f"    Total observations after dedup: {len(ranks)}")
 
     # Category-only model: F-test via one-way ANOVA
     cat_groups = [ranks[categories == i] for i in range(len(CATEGORIES))]

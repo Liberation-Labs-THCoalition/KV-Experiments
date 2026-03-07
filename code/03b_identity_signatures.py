@@ -65,7 +65,7 @@ from gpu_utils import get_output_path, load_model
 from stats_utils import (
     log_environment, bootstrap_ci, bootstrap_diff_ci, welch_t, mann_whitney,
     shapiro_wilk, cohens_d, cohens_d_ci, interpret_d, holm_bonferroni,
-    full_comparison
+    full_comparison, deduplicate_runs
 )
 
 
@@ -368,17 +368,20 @@ def run_fingerprinting(model, tokenizer, model_name: str,
                     print(f"    ERROR {persona_key}/{prompt[:30]}: {str(e)[:60]}")
                     completed += 1
 
-    # Compute per-persona statistics
+    # Compute per-persona statistics (deduplicated)
     persona_stats = {}
     for persona_key in PERSONAS:
         samples = [s for s in all_samples if s["persona"] == persona_key]
         norms = [s["total_norm"] for s in samples]
         if norms:
+            dedup_result = deduplicate_runs(norms, runs_per_prompt=num_runs)
+            norms_dedup = list(dedup_result["deduplicated"])
+            print(f"  Deduplicating: {len(norms)} -> {len(norms_dedup)} observations ({persona_key})")
             persona_stats[persona_key] = {
-                "n": len(norms),
-                "mean_norm": float(np.mean(norms)),
-                "std_norm": float(np.std(norms, ddof=1)) if len(norms) > 1 else 0,
-                "bootstrap_mean": bootstrap_ci(norms, seed=seed),
+                "n": len(norms_dedup),
+                "mean_norm": float(np.mean(norms_dedup)),
+                "std_norm": float(np.std(norms_dedup, ddof=1)) if len(norms_dedup) > 1 else 0,
+                "bootstrap_mean": bootstrap_ci(norms_dedup, seed=seed),
             }
 
     print("\n  Per-Persona Statistics:")
@@ -421,10 +424,15 @@ def run_classification(fingerprint_data: Dict,
     print("  EXPERIMENT B: CLASSIFICATION (Stratified k-Fold)")
     print("=" * 60)
 
-    samples = fingerprint_data["all_samples"]
-    if len(samples) < 20:
+    all_samples = fingerprint_data["all_samples"]
+    if len(all_samples) < 20:
         print("  Not enough samples for classification")
         return {"error": "insufficient samples"}
+
+    # Deduplicate: keep only first run (do_sample=False produces identical runs)
+    n_original = len(all_samples)
+    samples = [s for s in all_samples if s["run"] == 0]
+    print(f"  Deduplicating: {n_original} -> {len(samples)} observations")
 
     # Build feature matrix and labels
     X = np.array([s["features"]["flat_vector"] for s in samples])
@@ -598,17 +606,30 @@ def run_pairwise_analysis(fingerprint_data: Dict,
     print("  EXPERIMENT C: PAIRWISE DISTINGUISHABILITY")
     print("=" * 60)
 
-    samples = fingerprint_data["all_samples"]
+    all_samples = fingerprint_data["all_samples"]
+    n_runs = fingerprint_data.get("n_runs", 5)
     persona_keys = list(PERSONAS.keys())
     n_pairs = len(persona_keys) * (len(persona_keys) - 1) // 2
 
-    # Organize by persona
+    # Organize by persona (deduplicated)
     persona_data = {}
     for pk in persona_keys:
-        ps = [s for s in samples if s["persona"] == pk]
+        ps = [s for s in all_samples if s["persona"] == pk]
+        raw_norms = [s["total_norm"] for s in ps]
+        raw_features = np.array([s["features"]["flat_vector"] for s in ps])
+
+        # Deduplicate norms
+        dedup_result = deduplicate_runs(raw_norms, runs_per_prompt=n_runs)
+        norms_dedup = list(dedup_result["deduplicated"])
+
+        # Deduplicate features: keep first run block (every n_runs-th starting at 0)
+        n_prompts = len(raw_features) // n_runs if n_runs > 0 else len(raw_features)
+        features_dedup = raw_features[:n_prompts]
+
+        print(f"  Deduplicating: {len(raw_norms)} -> {len(norms_dedup)} observations ({pk})")
         persona_data[pk] = {
-            "norms": [s["total_norm"] for s in ps],
-            "features": np.array([s["features"]["flat_vector"] for s in ps]),
+            "norms": norms_dedup,
+            "features": features_dedup,
         }
 
     # Pairwise comparisons on total norm
@@ -717,9 +738,14 @@ def run_layer_analysis(fingerprint_data: Dict,
     print("  EXPERIMENT D: FEATURE LOCALIZATION (Per-Layer)")
     print("=" * 60)
 
-    samples = fingerprint_data["all_samples"]
-    if not samples:
+    all_samples = fingerprint_data["all_samples"]
+    if not all_samples:
         return {"error": "no samples"}
+
+    # Deduplicate: keep only first run (do_sample=False produces identical runs)
+    n_original = len(all_samples)
+    samples = [s for s in all_samples if s["run"] == 0]
+    print(f"  Deduplicating: {n_original} -> {len(samples)} observations")
 
     n_layers = samples[0]["features"]["n_layers"]
     feats_per_layer = samples[0]["features"]["features_per_layer"]
@@ -850,8 +876,13 @@ def run_consistency_analysis(fingerprint_data: Dict,
     print("  EXPERIMENT E: CROSS-PROMPT CONSISTENCY (H4)")
     print("=" * 60)
 
-    samples = fingerprint_data["all_samples"]
+    all_samples = fingerprint_data["all_samples"]
     persona_keys = list(PERSONAS.keys())
+
+    # Deduplicate: keep only first run (do_sample=False produces identical runs)
+    n_original = len(all_samples)
+    samples = [s for s in all_samples if s["run"] == 0]
+    print(f"  Deduplicating: {n_original} -> {len(samples)} observations")
 
     # Organize norms by persona and prompt
     persona_prompt_norms = defaultdict(lambda: defaultdict(list))

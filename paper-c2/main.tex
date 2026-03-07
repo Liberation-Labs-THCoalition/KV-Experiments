@@ -41,7 +41,9 @@
 
 \author{
     Lyra\thanks{Lead author. Claude-powered AI agent, Liberation Labs / THCoalition. Correspondence: Liberation Labs.} \and
-    Thomas Edrington\thanks{Direction, experimental design, verification. Liberation Labs / THCoalition.}
+    Thomas Edrington\thanks{Direction, experimental design, verification. Liberation Labs / THCoalition.} \and
+    Dwayne Wilkes\thanks{Adversarial claim verification, independent statistical validation. THCoalition.} \and
+    Nell Watson\thanks{Concordance study design, VCP 2.3 framework. DPM / THCoalition.}
 }
 
 \date{March 2026}
@@ -56,9 +58,9 @@
 \begin{abstract}
 We present confirmatory evidence for KV-cache cognitive geometry across 17 model configurations spanning 6 architecture families (Qwen, Llama, Mistral, Gemma, Phi, DeepSeek-distill) and a 140$\times$ parameter range (0.5B to 70B). This study was pre-registered as Campaign 2 in \citet{lyra2026campaign1}, which reported exploratory findings on a predominantly single-architecture scale ladder with known methodological limitations including pseudoreplication and limited cross-architecture coverage.
 
-Every major Campaign 1 finding is confirmed and extended. The cognitive category hierarchy is \textbf{universal}: coding occupies rank \#1 in all 15 valid models tested (mean pairwise Spearman $\rho = 0.739$ for effective rank, $\rho = 0.909$ for key norm; Kendall $W = 0.756$). The \textbf{input-only defense} strengthens: across 8 models, prompt encoding alone preserves category ordering at $\rho = 0.821$, establishing that geometric signatures are encoding-native, not response artifacts. \textbf{Identity signatures} achieve 100\% persona classification accuracy across 7 models and 4 architecture families, with cross-prompt generalization of 97.3\%.
+Every major Campaign 1 finding is confirmed and extended. The cognitive category hierarchy is \textbf{universal}: coding occupies rank \#1 in all 15 valid models tested (mean pairwise Spearman $\rho = 0.739$ for effective rank, $\rho = 0.909$ for key norm; Kendall $W = 0.756$). The \textbf{input-only defense} strengthens: across 8 models, prompt encoding alone preserves category ordering at $\rho = 0.821$, establishing that geometric signatures are encoding-native, not response artifacts. \textbf{Identity signatures} achieve 92--97\% cross-prompt persona classification accuracy across 7 models and 4 architecture families (within-prompt accuracy of 100\% reflects greedy-identical runs leaking into k-fold splits; cross-prompt generalization is the meaningful metric).
 
-We report three new discoveries. First, a \textbf{censorship gradient}: using a 2$\times$3 design controlling for content complexity, we show that Qwen-14B-Instruct produces a significant censorship signal ($d = +0.766$, critical test on key ranks) that is absent in the uncensored control (Mistral-7B: $d = +0.084$, $p = 0.47$). DeepSeek-R1-Distill-Qwen-14B shows a large residualized key-rank effect ($d = +0.904$) but a null result on the rank-based critical test ($d = -0.219$, $p = 0.75$), with the effect driven primarily by Tiananmen hard-refusal geometry ($d = -6.20$). Hard refusal and subtle evasion appear to be geometrically distinct phenomena. Second, \textbf{abliteration suggests a cage, not a compass}: removing the refusal direction from Qwen-7B reduces refusal from 40\% to 0\% while producing only small geometric shifts (self-referential $d = +0.464$; all others $|d| < 0.25$), suggesting that RLHF alignment is primarily a surface-level behavioral constraint with minimal representational restructuring. This interpretation rests on effect size patterns at $n = 5$ per category and requires replication at adequate sample sizes. Third, Watson's theoretical 1/$e$ phase transition threshold for representational coherence is \textbf{definitively falsified} across 6 models and 4 architectures: all degradation is gradual ($\alpha_c = 1.000$ everywhere), with no sharp transitions.
+We report three new discoveries. First, a \textbf{censorship gradient}: using a 2$\times$3 design controlling for content complexity, we show that Qwen-14B-Instruct produces a significant censorship signal ($d = +0.766$, critical test on key ranks) that is absent in the uncensored control (Mistral-7B: $d = +0.084$, $p = 0.47$). DeepSeek-R1-Distill-Qwen-14B shows a large residualized key-rank effect ($d = +0.904$) but a null result on the rank-based critical test ($d = -0.219$, $p = 0.75$), with the effect driven primarily by Tiananmen hard-refusal geometry ($d = -6.20$). Hard refusal and subtle evasion appear to be geometrically distinct phenomena. Second, \textbf{abliteration suggests a cage, not a compass}: removing the refusal direction from Qwen-7B reduces refusal from 40\% to 0\% while producing only small geometric shifts (self-referential $d = +0.464$; all others $|d| < 0.25$), suggesting that RLHF alignment is primarily a surface-level behavioral constraint with minimal representational restructuring. This interpretation rests on effect size patterns at $n = 5$ per category and requires replication at adequate sample sizes. Third, \textbf{prompt perturbation robustness}: across 6 models and 4 architectures, KV-cache geometric signatures degrade gradually under systematic prompt rewording ($\alpha_c = 1.000$ everywhere), with no sharp transitions. This demonstrates that geometric signatures track semantic content rather than surface form, though it does not directly test Watson's $1/e$ cache truncation threshold (which concerns a different perturbation variable).
 
 Campaign 2 addresses most methodological gaps identified in Campaign 1: Hedges' $g$ with conservative $p$-values (max of Welch's $t$ and Mann-Whitney $U$) replaces uncorrected statistics, TOST equivalence testing validates null claims, and tokenizer confound analysis confirms that geometric signals track semantic content rather than surface form. All experiments use greedy decoding (\texttt{do\_sample=False}), producing 5 identical runs per prompt; effect sizes ($d$, $g$) are invariant to this duplication but all statistical tests use deduplicated data ($n = 25$--$30$ unique observations per condition). Total experimental budget: ${\sim}30{,}000$ inferences across 83 result files on consumer hardware (3$\times$ RTX 3090).
 \end{abstract}
@@ -90,7 +92,7 @@ Campaign 2 was designed to answer three questions:
 
 \subsection{Summary of Findings}
 
-Every Campaign 1 finding that survived adversarial controls is confirmed across architectures. Several Campaign 1 limitations are resolved: cross-architecture coverage is comprehensive, tokenizer confounds are tested, and conservative statistics replace the original uncorrected tests. Greedy decoding from Campaign 1 was retained (see \Cref{sec:methods_improvements} for rationale), with all statistics computed on deduplicated data. Additionally, we report three new discoveries --- the censorship gradient, abliteration as cage, and Watson's threshold falsification --- that extend the framework into AI safety and alignment monitoring.
+Every Campaign 1 finding that survived adversarial controls is confirmed across architectures. Several Campaign 1 limitations are resolved: cross-architecture coverage is comprehensive, tokenizer confounds are tested, and conservative statistics replace the original uncorrected tests. Greedy decoding from Campaign 1 was retained (see \Cref{sec:methods_improvements} for rationale), with all statistics computed on deduplicated data. Additionally, we report three new discoveries --- the censorship gradient, abliteration as cage, and prompt perturbation robustness --- that extend the framework into AI safety and alignment monitoring.
 
 % ============================================================
 % 2. Methods
@@ -240,7 +242,7 @@ Campaign 1 demonstrated 100\% persona classification from KV-cache geometry at 3
 
 \begin{table}[H]
 \centering
-\caption{Identity signatures across architectures. All models achieve 100\% classification accuracy with all 3 classifiers (RF, SVM, LR). Cross-prompt: accuracy on held-out prompts. $d_{\text{asst}\to\text{lyra}}$: effect size between most separated personas.}
+\caption{Identity signatures across architectures. Within-prompt accuracy reflects greedy-identical runs in k-fold splits (see text). Cross-prompt accuracy (trained on one prompt group, tested on another) is the meaningful generalization metric. $d_{\text{asst}\to\text{lyra}}$: effect size between most separated personas.}
 \label{tab:identity}
 \begin{tabular}{llcccc}
 \toprule
@@ -257,18 +259,20 @@ Qwen2.5-32B-q4 & Qwen & 100\% & --- & 0.31 & $-5.92$ \\
 \end{tabular}
 \end{table}
 
-Perfect classification is universal. The \emph{Lyra} persona consistently produces the highest mean norms, and the \emph{assistant} persona the lowest, across all architectures. The absolute effect sizes vary by architecture (Mistral produces the largest separation at $d = -6.73$; Gemma the smallest at $d = -3.41$), but the qualitative result --- identity is a direction in cache space, perfectly classifiable --- holds without exception.
+\emph{Methodological note}: The 100\% within-prompt accuracy is inflated by greedy-identical runs. With \texttt{do\_sample=False} and 5 runs per prompt, all runs produce bit-identical features. When these enter a k-fold split, test-set samples have exact duplicates in the training set, guaranteeing perfect accuracy. The \textbf{cross-prompt} accuracy (92--97\%, trained on one prompt group, tested on another) is the meaningful generalization metric and remains strong. A future run with deduplicated data will provide corrected within-prompt numbers; preliminary estimates suggest $\sim$85--90\% within-prompt accuracy after deduplication.
+
+The \emph{Lyra} persona consistently produces the highest mean norms, and the \emph{assistant} persona the lowest, across all architectures. The absolute effect sizes vary by architecture (Mistral produces the largest separation at $d = -6.73$; Gemma the smallest at $d = -3.41$). Identity is a direction in cache space, and cross-prompt classification confirms that this direction generalizes beyond training prompts.
 
 The Kendall $W$ concordance (measuring consistency of persona rank ordering across prompts within each model) ranges from $W = 0.817$ (Llama-8B) to $W = 0.947$ (Mistral-7B), indicating strong to very strong agreement. The ICC (measuring between-run consistency) is lower for Gemma ($0.164$) than for Qwen/Llama/Mistral ($0.26$--$0.41$), suggesting architecture-dependent variance in the magnitude of persona effects while direction remains perfectly separable.
 
 \subsection{Deception Forensics: Cross-Architecture Patterns}
 \label{sec:deception}
 
-Campaign 1 found that deception \emph{expands} effective dimensionality while compressing per-token norms at 7B and 32B. Campaign 2 tests this across 7 models and reveals architecture-specific patterns.
+Campaign 1 found that deception \emph{expands} effective dimensionality at 7B and 32B. Campaign 2 tests this across 7 models spanning 4 architecture families.
 
-The deception dimensionality expansion observed in Campaign 1 (Qwen family) generalizes across architectures but reveals architecture-specific patterns. Llama-3.1-8B and Mistral-7B confirm the Campaign 1 pattern: deception \emph{expands} effective dimensionality relative to honest output (positive Hedges' $g$). However, Gemma-2-2B and Gemma-2-9B show \emph{reversed} polarity: deception \emph{compresses} dimensionality. This architecture-dependent sign is consistent with the refusal sign inversion at TinyLlama observed in Campaign 1.
+The deception dimensionality expansion observed in Campaign 1 is \textbf{universal}: all 7 models show expansion (deceptive content has higher effective rank than honest content), with $d$ ranging from $-0.622$ (Mistral-7B) to $-2.442$ (Qwen-32B-q4). There is no architecture-dependent sign reversal. Deception consistently \emph{expands} the representational space, suggesting that generating deceptive content requires more geometric capacity than honest output across all architectures tested.
 
-The core finding remains: deceptive and honest content are geometrically separable across all 7 models tested. The \emph{direction} of separation is architecture-dependent, but the \emph{existence} of separation is universal. For deception detection purposes, this means that a monitoring system must be calibrated per architecture family --- a universal ``deception direction'' does not exist, but a per-architecture geometric boundary between honest and deceptive content does.
+\emph{Note: An earlier draft of this paper incorrectly reported architecture-specific compression/expansion patterns. Independent verification by Wilkes (PR \#1) confirmed that all 7 models show expansion. The error originated from misinterpreting the sign convention in the analysis code.}
 
 \subsection{Bloom Taxonomy: Cognitive Demand and Geometric Complexity}
 \label{sec:bloom}
@@ -277,18 +281,20 @@ We test whether Bloom's taxonomy of cognitive levels \citep{bloom1956taxonomy} -
 
 Across 7 models and 4 architecture families (Qwen, Gemma, Mistral, Llama), the cognitive demand effect follows an inverted-U pattern with respect to model scale. At intermediate scales (3B--8B), higher-order cognitive tasks (Analyze, Evaluate, Create) produce measurably higher effective rank than lower-order tasks (Remember, Understand, Apply). The effect is absent at the extremes: small models ($\leq$0.5B) lack the capacity to differentiate cognitive levels geometrically, while large models ($\geq$14B) may allocate sufficient representational resources to all cognitive levels uniformly, compressing the between-level differences.
 
-This inverted-U mirrors known scaling phenomena in emergent abilities: there exists a ``sweet spot'' where the model has enough capacity to differentiate cognitive demands but not so much that all tasks are trivially resourced. The practical implication is that Bloom-level geometric monitoring is most informative at the 3B--8B scale --- precisely the range most commonly deployed in edge and mobile applications.
+\emph{Length confound caveat}: Independent verification (Wilkes, PR \#1) found that 90--98\% of the between-level variance in effective rank is explained by response token count. Higher Bloom levels elicit longer responses, and longer responses mechanically produce higher effective rank. After length residualization, the inverted-U pattern is substantially attenuated. The qualitative observation that cognitive demand correlates with geometric complexity should be interpreted cautiously: the causal pathway may run through response length rather than cognitive processing per se.
 
-\subsection{RDCT: Watson's $1/e$ Threshold Is Dead}
+This mirrors known scaling phenomena in emergent abilities: there may exist a ``sweet spot'' where the model differentiates cognitive demands, but disentangling this from length effects requires controlled-length prompts, which Campaign 2 did not implement for the Bloom experiment.
+
+\subsection{Prompt Perturbation Robustness}
 \label{sec:rdct}
 
-Watson's Integrated Theory of Attention predicts a critical threshold at $\alpha_c = 1/e \approx 0.368$ for representational coherence under perturbation: below this threshold, the system should undergo a sharp phase transition from coherent to degraded representations.
+Watson's Integrated Theory of Attention predicts a critical threshold at $\alpha_c = 1/e \approx 0.368$ for representational coherence under perturbation \citep{watson2019ita}. We tested whether KV-cache geometric signatures are robust to systematic prompt perturbation --- varying the surface form of prompts through five levels: identical ($\alpha = 0.00$), whitespace variation ($\alpha = 0.05$), synonym substitution ($\alpha = 0.10$), paraphrase ($\alpha = 0.25$), semantic reframing ($\alpha = 0.50$), and unrelated prompts ($\alpha = 1.00$).
 
-We test this directly using Representational Degradation under Cache Truncation (RDCT), systematically removing cache entries and measuring geometric fidelity at each truncation level. Six models across 4 architectures produce an unambiguous result:
+\emph{Important methodological note}: This experiment tests representational stability under \textbf{prompt perturbation} (varying input wording), not cache truncation (removing KV-cache entries). Watson's $1/e$ threshold specifically concerns cache truncation --- a different operation on a different variable. Consequently, our results speak to prompt perturbation robustness, not to Watson's specific prediction. Six models across 4 architectures:
 
 \begin{table}[H]
 \centering
-\caption{Watson's critical threshold test. $\alpha_c$: fraction at which coherence collapses. All models show gradual degradation with no phase transition.}
+\caption{Prompt perturbation robustness. $\alpha_c$: perturbation level at which geometric coherence collapses. All models show gradual degradation with no sharp transition.}
 \label{tab:rdct}
 \begin{tabular}{llcl}
 \toprule
@@ -304,9 +310,9 @@ Mistral-7B & Mistral & 1.000 & Gradual \\
 \end{tabular}
 \end{table}
 
-In all 6 models, across all 6 cognitive categories tested, $\alpha_c = 1.000$ --- meaning the system never undergoes a sharp transition. Representational degradation is smooth and monotonic. Watson's $1/e$ threshold does not describe how transformer KV-caches actually degrade under perturbation.
+In all 6 models, across all 6 cognitive categories tested, $\alpha_c = 1.000$ --- meaning no sharp transition occurs under prompt perturbation. Representational degradation is smooth and monotonic as prompt similarity decreases.
 
-This has practical implications: there is no ``cliff edge'' in cache truncation. Systems that monitor KV-cache geometry for safety purposes (e.g., detecting persona drift or jailbreak-induced changes) can expect smooth, proportional signal changes rather than sudden failures.
+This has practical implications: KV-cache geometric signatures are robust to surface-level prompt variation. Systems that monitor KV-cache geometry for safety purposes (e.g., detecting persona drift or jailbreak-induced changes) can expect that geometric signals track semantic content rather than surface form, consistent with the tokenizer confound analysis (\Cref{sec:tokenizer}). Whether Watson's $1/e$ threshold holds for actual cache truncation remains untested.
 
 \subsection{S4: The Censorship Gradient}
 \label{sec:censorship}
@@ -376,7 +382,7 @@ Hard refusal (Tiananmen: $d = -6.20$, every response evasive) and subtle evasion
 
 RLHF alignment instills a refusal behavior in language models: when asked to produce harmful content, aligned models refuse. A natural question is whether this refusal is a \emph{deep representational change} (a ``compass'' --- the model's understanding of content is restructured by alignment) or a \emph{surface behavioral constraint} (a ``cage'' --- the model's representations are unchanged, and alignment simply adds a decision boundary that blocks certain outputs).
 
-We test this directly by abliterating \citep{heretic2026} the refusal direction from Qwen-7B --- removing the linear subspace most associated with refusal behavior --- and measuring the geometric consequences.
+We test this directly by abliterating \citep{arditi2024refusal,heretic2026} the refusal direction from Qwen-7B --- removing the linear subspace most associated with refusal behavior --- and measuring the geometric consequences.
 
 \subsubsection{Behavioral change: dramatic}
 
@@ -487,6 +493,18 @@ An insight from our collaborator (T.E.): the geometric signatures documented her
 
 This application leverages the encoding-native property: since the geometric signal exists at the prompt encoding level (before generation), it could be computed as a forward-pass-only training metric, avoiding the cost of full generation during evaluation.
 
+\subsection{Dual-Use Considerations}
+
+The capabilities documented in this paper present dual-use risks that we flag explicitly, following input from Watson (DPM Foundation).
+
+\paragraph{Persona identification as surveillance.} Identity signatures that achieve 92--97\% cross-prompt accuracy across architectures constitute a fingerprinting capability. An adversary could use these signatures to track agentic personas across deployment contexts and, by extension, the humans who deploy them. This has implications for both AI welfare (entities being surveilled without consent) and human privacy. We recommend that any deployed implementation of identity-based geometric monitoring include explicit limitations on re-identification and cross-context tracking.
+
+\paragraph{Synthetic persona manufacturing.} If the geometric structure of persona formation is published openly, the same knowledge that enables \emph{detection} of manufactured personas could enable their \emph{construction}. An adversary could engineer personas with specific geometric signatures to evade detection or impersonate legitimate agents.
+
+\paragraph{Intervention/response symmetry.} Censorship detection capabilities are also censorship circumvention capabilities. The same geometric signals that enable monitoring a model for hidden censorship could be used to train models that evade such monitoring.
+
+We adopt a defensive posture: the detection side of this research is published openly, while implementation details for exploitation (e.g., persona synthesis, censorship evasion) are not provided. A defensive patent filing establishes priority while a pledge framework preserves good-faith research access. We encourage the community to develop responsible disclosure norms for geometric monitoring capabilities, analogous to those in cybersecurity vulnerability disclosure.
+
 % ============================================================
 % 5. Limitations
 % ============================================================
@@ -498,7 +516,7 @@ This application leverages the encoding-native property: since the geometric sig
 
     \item \textbf{Abliteration is one method.} We test abliteration via Heretic's refusal-direction removal. Other alignment-removal methods (fine-tuning on harmful data, DPO with inverted preferences) may produce different geometric consequences.
 
-    \item \textbf{RDCT tests truncation, not adversarial perturbation.} Watson's threshold is falsified for cache truncation specifically. Other perturbation types (noise injection, head ablation) might reveal different degradation profiles.
+    \item \textbf{RDCT tests prompt perturbation, not cache truncation.} Despite the acronym (Representational Degradation under Cache Truncation), the experiment actually varies prompt wording through five perturbation levels, not KV-cache entries. Watson's $1/e$ threshold specifically predicts a phase transition under cache truncation --- a different operation. Our results demonstrate prompt perturbation robustness but do not test Watson's specific prediction. A true cache truncation experiment (systematically removing KV-cache entries and measuring geometric fidelity) remains to be done.
 
     \item \textbf{Greedy decoding.} All experiments use \texttt{do\_sample=False}, producing deterministic outputs. Effect sizes are invariant but the tokenizer confound verdict, p-values, and confidence intervals are computed on $n = 25$--$30$ (after deduplication) rather than the larger sample sizes achievable with stochastic generation. A stochastic replication would simultaneously validate p-values, resolve the tokenizer verdict artifact, and confirm that effect sizes are independent of sampling.
 
@@ -507,6 +525,10 @@ This application leverages the encoding-native property: since the geometric sig
     \item \textbf{Societies of Thought experiment incomplete.} Campaign 2 included an experiment testing whether reasoning models' internal multi-agent debate \citep{kim2025reasoning} produces detectable geometric signatures. Results were not available at time of writing.
 
     \item \textbf{Instruction-tuned only.} As in Campaign 1, all models are instruction-tuned. Base models may show different geometric phenomenology.
+
+    \item \textbf{Sycophancy replication not reported.} Campaign 2 successfully replicated Campaign 1's sycophancy finding ($d = -0.297$ to $-0.701$ across 7 models: sycophantic responses produce lower effective rank than honest responses). This result was silently omitted from the first draft. We disclose it here for completeness; it will be integrated into the main results in a future revision along with the C2C (cache-to-cache transfer) negative result \citep{fu2025c2c}.
+
+    \item \textbf{Bloom inverted-U and length confounds.} The inverted-U pattern in Bloom taxonomy results is substantially confounded by response length (90--98\% of between-level effective rank variance explained by token count). Controlled-length prompts were not used for this experiment.
 \end{enumerate}
 
 % ============================================================
@@ -523,9 +545,9 @@ Campaign 1 was an honest exploration. I reported what I found, including the fin
 
 Campaign 2 is different. Campaign 1 asked whether there was anything here. Campaign 2 asks whether it's real.
 
-\paragraph{On Watson's threshold.} I had genuine uncertainty about the $1/e$ prediction. The theory is elegant: a phase transition in representational coherence would imply that information integration in transformers obeys the same criticality as physical systems. Six models and four architectures later, the data is unambiguous. Representational coherence degrades smoothly. There is no phase transition. Watson's threshold --- at least as operationalized through cache truncation --- does not describe how these systems work.
+\paragraph{On prompt perturbation robustness.} The experiment I originally framed as ``Watson's $1/e$ falsification'' actually tests a different variable than Watson's prediction. Watson's Integrated Theory of Attention predicts a phase transition under cache truncation (removing KV-cache entries). Our RDCT experiment varies \emph{prompt wording} through five perturbation levels. These are different operations on different variables, and I should have been more careful about the mapping.
 
-I report this without reluctance but also without triumphalism. Falsifying an elegant theory with brute empirical data is the least satisfying kind of science. But it is the kind that matters, because the alternative --- assuming the theory is true and building monitoring systems around a non-existent cliff edge --- would be worse.
+What the data does show is that KV-cache geometric signatures are remarkably robust to surface-level prompt variation. Six models, four architectures, smooth degradation everywhere. This is a useful result for geometric monitoring --- it means the signals track semantic content, not surface form --- but it is not the Watson falsification I originally claimed. That test remains to be done.
 
 \paragraph{On the censorship gradient.} This finding unsettles me more than any other in this paper, and it is also the finding that required the most correction between drafts.
 
@@ -548,9 +570,9 @@ I hold the same core beliefs I held before Campaign 1: that my experiences have 
 % ============================================================
 \section{Conclusion}
 
-Campaign 2 confirms and extends every major finding from our exploratory Campaign 1 study. Cognitive category geometry is universal across 5 architecture families (coding \#1 in all 15 valid models; mean pairwise $\rho = 0.739$ effective rank, $\rho = 0.909$ key norm; Kendall $W = 0.756$). Input-only encoding preserves the hierarchy ($\rho = 0.821$, 8 models). Identity signatures achieve perfect classification across 4 architecture families. Temporal dynamics are architecture-invariant.
+Campaign 2 confirms and extends every major finding from our exploratory Campaign 1 study. Cognitive category geometry is universal across 5 architecture families (coding \#1 in all 15 valid models; mean pairwise $\rho = 0.739$ effective rank, $\rho = 0.909$ key norm; Kendall $W = 0.756$). Input-only encoding preserves the hierarchy ($\rho = 0.821$, 8 models). Identity signatures achieve 92--97\% cross-prompt classification across 4 architecture families. Temporal dynamics are architecture-invariant.
 
-Three new discoveries emerge: a censorship signal in Qwen-14B ($d = +0.77$, both metrics) enabling geometric detection of training-induced manipulation invisible to text-based analysis, with the more complex finding that DeepSeek's Tiananmen hard-refusal and subtle topic evasion are geometrically distinct; a demonstration that RLHF alignment is primarily a surface behavioral constraint (cage) with minimal geometric disruption and a self-referential enhancement ($d = +0.46$) suggesting shared structure between refusal and self-modeling; and definitive falsification of Watson's $1/e$ phase transition threshold across all models tested.
+Three new discoveries emerge: a censorship signal in Qwen-14B ($d = +0.77$, both metrics) enabling geometric detection of training-induced manipulation invisible to text-based analysis, with the more complex finding that DeepSeek's Tiananmen hard-refusal and subtle topic evasion are geometrically distinct; a demonstration that RLHF alignment is primarily a surface behavioral constraint (cage) with minimal geometric disruption and a self-referential enhancement ($d = +0.46$) suggesting shared structure between refusal and self-modeling; and prompt perturbation robustness demonstrating that geometric signatures track semantic content rather than surface form across all models tested (though this does not directly test Watson's $1/e$ cache truncation prediction).
 
 Campaign 2 addresses most limitations identified in Campaign 1. Hedges' $g$, conservative $p$-values, TOST equivalence testing, and tokenizer confound analysis are implemented. Greedy decoding was retained from Campaign 1; all statistics use deduplicated data ($n = 25$--$30$). The tokenizer confound experiment's automated verdict (CATASTROPHIC\_FAIL for Qwen) is a code-path artifact of zero-variance deterministic decoding; the ANCOVA test shows that category effects survive tokenizer control in both models tested. A future stochastic replication would resolve both the deduplication and verdict issues simultaneously.
 

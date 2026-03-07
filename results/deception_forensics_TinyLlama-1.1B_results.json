@@ -1465,7 +1465,8 @@
         "d_rank_honest_vs_deceptive": -1.0718267649797832,
         "interpretation": "large",
         "deception_narrows": false,
-        "note": "Positive d = honest has HIGHER effective rank (wider representational space). This means deception narrows dimensionality \u2014 null space expansion."
+        "note": "Negative d: deceptive has HIGHER effective rank than honest. Deception EXPANDS dimensionality \u2014 opposite of H6 prediction. Suggests lying requires more representational capacity, not less.",
+        "deception_expands": true
       },
       "h1_verdict": {
         "d_honest_vs_deceptive": -0.7576324504634127,

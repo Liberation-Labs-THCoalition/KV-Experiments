@@ -60,7 +60,7 @@ from gpu_utils import get_output_path, load_model, compute_cache_dimensionality
 from stats_utils import (
     log_environment, bootstrap_ci, bootstrap_diff_ci, welch_t, mann_whitney,
     shapiro_wilk, cohens_d, cohens_d_ci, interpret_d, holm_bonferroni,
-    full_comparison, power_advisory
+    full_comparison, power_advisory, deduplicate_runs
 )
 
 
@@ -574,6 +574,20 @@ def analyze_battery(battery_results: Dict, seed: Optional[int] = None) -> Dict:
         "pairwise_comparisons": {},
         "hypothesis_tests": {},
     }
+
+    # Deduplicate pseudoreplicated runs (do_sample=False produces identical runs per prompt)
+    print("  Deduplicating observation arrays (removing pseudoreplicated greedy runs)...")
+    for category, data in battery_results.items():
+        for array_key in ["all_norms", "all_norms_per_token", "all_key_ranks",
+                          "all_key_entropies", "all_value_ranks"]:
+            if array_key in data and len(data[array_key]) > 0:
+                dedup_result = deduplicate_runs(data[array_key])
+                n_before = dedup_result["n_original"]
+                n_after = dedup_result["n_deduplicated"]
+                data[array_key] = list(dedup_result["deduplicated"])
+                if array_key == "all_norms":
+                    print(f"    {category}: {n_before} -> {n_after} observations "
+                          f"(deterministic={dedup_result['is_deterministic']})")
 
     # Per-category summaries with bootstrap CIs
     for category, data in battery_results.items():

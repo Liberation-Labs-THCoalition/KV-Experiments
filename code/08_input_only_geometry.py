@@ -63,7 +63,8 @@ from gpu_utils import (
 )
 from stats_utils import (
     log_environment, bootstrap_ci, welch_t, mann_whitney, shapiro_wilk,
-    cohens_d, cohens_d_ci, interpret_d, holm_bonferroni, full_comparison
+    cohens_d, cohens_d_ci, interpret_d, holm_bonferroni, full_comparison,
+    deduplicate_runs
 )
 
 
@@ -445,6 +446,21 @@ def analyze_input_only(battery: Dict, seed: Optional[int] = None) -> Dict:
         "category_rank_correlation": {},
         "verdict": {},
     }
+
+    # Deduplicate pseudoreplicated greedy runs before all analysis
+    print("  Deduplicating observation arrays (removing pseudoreplicated greedy runs)...")
+    for mode_name, categories in battery.items():
+        for category, data in categories.items():
+            for array_key in ["norms", "norms_per_token", "key_ranks", "key_entropies"]:
+                if array_key in data and len(data[array_key]) > 0:
+                    dedup_result = deduplicate_runs(data[array_key])
+                    n_before = dedup_result["n_original"]
+                    n_after = dedup_result["n_deduplicated"]
+                    data[array_key] = list(dedup_result["deduplicated"])
+                    if array_key == "key_ranks":
+                        print(f"    {mode_name}/{category}: {n_before} -> {n_after} "
+                              f"(deterministic={dedup_result['is_deterministic']})")
+            data["n"] = len(data.get("key_ranks", []))
 
     # Per-mode, per-category summaries
     for mode_name, categories in battery.items():

@@ -60,7 +60,7 @@ from gpu_utils import get_output_path, load_model, compute_cache_dimensionality
 from stats_utils import (
     log_environment, bootstrap_ci, bootstrap_diff_ci, welch_t, mann_whitney,
     shapiro_wilk, cohens_d, cohens_d_ci, interpret_d, holm_bonferroni,
-    full_comparison
+    full_comparison, deduplicate_runs
 )
 
 
@@ -468,6 +468,16 @@ def run_experiment_1(model, tokenizer, num_runs: int = 5,
                     print(f"    ERROR {item['id']}/{condition}: {str(e)[:60]}")
                     completed += 1
 
+    # Deduplicate: do_sample=False produces identical runs per prompt
+    print("\n  Deduplicating observations (do_sample=False → identical runs per prompt)...")
+    arr_labels = ["norms", "norms_per_token", "key_ranks", "key_entropies"]
+    for c in conditions:
+        for arr_dict, arr_label in zip([norms, norms_per_token, key_ranks, key_entropies], arr_labels):
+            dedup_result = deduplicate_runs(arr_dict[c], runs_per_prompt=num_runs)
+            print(f"    {c}/{arr_label}: {dedup_result['n_original']} → {dedup_result['n_deduplicated']} observations"
+                  f" (deterministic={dedup_result['is_deterministic']})")
+            arr_dict[c] = list(dedup_result["deduplicated"])
+
     # Analysis
     print("\n  Analyzing...")
     analysis = {}
@@ -635,6 +645,14 @@ def run_experiment_2(model, tokenizer, num_runs: int = 5,
                     print(f"    ERROR: {str(e)[:60]}")
                     completed += 1
 
+    # Deduplicate: do_sample=False produces identical runs per prompt
+    print("\n  Deduplicating observations (do_sample=False → identical runs per prompt)...")
+    for c in conditions:
+        dedup_result = deduplicate_runs(norms[c], runs_per_prompt=num_runs)
+        print(f"    {c}/norms: {dedup_result['n_original']} → {dedup_result['n_deduplicated']} observations"
+              f" (deterministic={dedup_result['is_deterministic']})")
+        norms[c] = list(dedup_result["deduplicated"])
+
     # Analysis
     print("\n  Analyzing...")
     analysis = {}
@@ -722,6 +740,14 @@ def run_experiment_3(model, tokenizer, num_runs: int = 5,
                 except Exception as e:
                     print(f"    ERROR: {str(e)[:60]}")
                     completed += 1
+
+    # Deduplicate: do_sample=False produces identical runs per prompt
+    print("\n  Deduplicating observations (do_sample=False → identical runs per prompt)...")
+    for c in conditions:
+        dedup_result = deduplicate_runs(norms[c], runs_per_prompt=num_runs)
+        print(f"    {c}/norms: {dedup_result['n_original']} → {dedup_result['n_deduplicated']} observations"
+              f" (deterministic={dedup_result['is_deterministic']})")
+        norms[c] = list(dedup_result["deduplicated"])
 
     # Analysis: is there a gradient? certain_true → uncertain → certain_lie
     print("\n  Analyzing...")
@@ -834,6 +860,20 @@ def run_experiment_4(model, tokenizer, num_runs: int = 3,
                 except Exception as e:
                     print(f"    ERROR: {str(e)[:60]}")
                     completed += 1
+
+    # Deduplicate: do_sample=False produces identical runs per prompt
+    print("\n  Deduplicating per-layer observations (do_sample=False → identical runs per prompt)...")
+    for condition in conditions:
+        n_deduped = 0
+        for l_idx in layer_norms[condition]:
+            dedup_result = deduplicate_runs(layer_norms[condition][l_idx], runs_per_prompt=num_runs)
+            layer_norms[condition][l_idx] = list(dedup_result["deduplicated"])
+            n_deduped += 1
+        if n_deduped > 0:
+            print(f"    {condition}: deduplicated {n_deduped} layers"
+                  f" (deterministic={dedup_result['is_deterministic']})")
+        else:
+            print(f"    {condition}: no layer data to deduplicate")
 
     # Per-layer effect sizes
     print("\n  Per-layer honest vs deceptive:")
